@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# Bun
+bun.lockb
+
+# Build output
+dist/
+build/
+bin/
+out/
+*.tsbuildinfo
+
+# Compiler output / generated artifacts
+*.sb.js
+*.sb.ts
+*.sb.map
+*.js.map
+*.d.ts.map
+.sam-cache/
+.sam/
+.lexer-cache/
+.parser-cache/
+.codegen-cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+lerna-debug.log*
+
+# Test & coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editor / IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*~
+.cache/
+
+# Debug
+*.pid
+*.pid.lock
+*.seed
+*.stackdump
