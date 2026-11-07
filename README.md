@@ -130,7 +130,7 @@ bun run src/cli/index.ts --help
 
 This project is distributed under a **dual license**:
 
-* [MIT](https://www.google.com/search?q=LICENSE-MIT)
-* [Apache License 2.0](https://www.google.com/search?q=LICENSE-APACHE)
+* [MIT](./LICENSE-MIT)
+* [Apache License 2.0](./LICENSE-APACHE)
 
 You may choose the license that best fits your use case.
