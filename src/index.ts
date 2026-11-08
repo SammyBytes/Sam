@@ -1,4 +1,4 @@
-import { generateCode } from "./cli/codegen";
+import { generateCode } from "./codegen";
 import { tokenize } from "./lexer";
 import { Parser } from "./parser";
 
