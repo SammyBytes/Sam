@@ -11,5 +11,9 @@ export const generateCode = (programNode: ProgramNode): string => {
         }
     }
 
-    return parts.join("\n\n");
+    if (parts.length === 0) {
+        return "";
+    }
+
+    return `import { z } from "zod";\n\n${parts.join("\n\n")}`;
 }

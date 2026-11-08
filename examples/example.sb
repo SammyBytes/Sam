@@ -1,4 +1,0 @@
-schema UserProfile {
-  id: string,
-  is_active: boolean
-}
