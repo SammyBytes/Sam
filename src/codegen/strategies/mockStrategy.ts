@@ -9,7 +9,7 @@ import type { IAgentStrategy } from "./agentStrategy";
 export class MockStrategy implements IAgentStrategy {
   buildArgs(props: Map<string, AgentPropertyNode>): string[] {
    return [
-      'args.push("-e", `console.log("[MOCK AGENT OUTPUT] Prompt received:", prompt); process.exit(0);`);'
+      'args.push("-e", `console.log("[MOCK AGENT OUTPUT] Prompt received:", ${JSON.stringify(prompt)}); process.exit(0);`);'
     ];
   }
   getBinaryName(): string {
