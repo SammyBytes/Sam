@@ -1,9 +1,11 @@
 import type { AgentNode, AgentPropertyNode } from "../../parser/ast";
 import type { IAgentStrategy } from "../strategies/agentStrategy";
 import { ClaudeCodeStrategy } from "../strategies/claudeCodeStrategy";
+import { MockStrategy } from "../strategies/mockStrategy";
 
 const STRATEGIES: Record<string, () => IAgentStrategy> = {
   claude_code: () => new ClaudeCodeStrategy(),
+  mock: () => new MockStrategy(),
 };
 
 export function getPropertyValue(prop?: AgentPropertyNode): string | number | boolean | undefined {
