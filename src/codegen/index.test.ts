@@ -25,6 +25,48 @@ test("should generate TypeScript with Zod schemas from a .sb program", () => {
   );
 });
 
+test("should generate Bun.spawn code for an agent declaration", () => {
+  const code = `
+    agent QuickAuditor {
+      runner: claude_code,
+      workspace: "./src",
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+  const output = generateCode(ast);
+
+  expect(output).not.toContain('import { z } from "zod";');
+  expect(output).toContain("export async function runQuickAuditor(");
+  expect(output).toContain('const args = ["claude"];');
+  expect(output).toContain('cwd: options?.cwd ?? "./src"');
+  expect(output).toContain("Bun.spawn(args, {");
+});
+
+test("should generate combined TypeScript for schemas and agents", () => {
+  const code = `
+    schema Report {
+      status: string
+    }
+
+    agent CodeReviewer {
+      runner: claude_code,
+      workspace: "./src"
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+  const output = generateCode(ast);
+
+  expect(output).toContain('import { z } from "zod";');
+  expect(output).toContain("export const ReportSchema = z.object({");
+  expect(output).toContain("export async function runCodeReviewer(");
+});
+
 test("should return an empty string for an empty program", () => {
   const output = generateCode({ type: "Program", body: [] });
   expect(output).toBe("");
