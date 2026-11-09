@@ -1,5 +1,6 @@
 import type { Token, TokenType } from "../lexer";
 import type { ASTNode, ProgramNode } from "./ast";
+import { parseAgent } from "./parsers/parseAgent";
 import { parseSchema } from "./parsers/parseSchema";
 import type { IParserContext } from "./types";
 
@@ -58,6 +59,9 @@ export class Parser implements IParserContext {
       switch (token.type) {
         case "SCHEMA":
           body.push(parseSchema(this));
+          break;
+        case "AGENT":
+          body.push(parseAgent(this));
           break;
         default:
           throw new Error(
