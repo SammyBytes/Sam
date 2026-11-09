@@ -1,0 +1,10 @@
+schema SecurityAudit {
+  has_vulnerabilities: boolean,
+  risk_level: string
+}
+
+agent Auditor {
+    runner: claude_code
+    workspace: "./src"
+}
+
