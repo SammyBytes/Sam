@@ -7,7 +7,7 @@ async function main() {
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
-Sam Compiler CLI (v0.1.1)
+Sam Compiler CLI (v0.2.0)
 Usage: sam <input.sb> [options]
 
 Options:
