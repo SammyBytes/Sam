@@ -10,7 +10,30 @@ export interface SchemaNode {
   fields: FieldNode[]; // Array of field definitions within the schema example: [{ name: "active", fieldType: "boolean" }]
 }
 
-export type ASTNode = SchemaNode;
+// ------------------------------------------------------------------
+// Agent Types (v0.2.0)
+// ------------------------------------------------------------------
+
+export type AgentPropertyType =
+  | { type: "Identifier"; value: string } // e.g., "claude_code", "opencode"
+  | { type: "StringLiteral"; value: string } // e.g., "./src"
+  | { type: "NumberLiteral"; value: number } // e.g., 42
+  | { type: "BooleanLiteral"; value: boolean } // e.g., true
+  | { type: "EnvLiteral"; value: string }; // e.g., "MY_ENV_VAR"
+
+export interface AgentPropertyNode {
+  type: "AgentProperty";
+  name: string; // e.g., "name", "version"
+  value: AgentPropertyType; // The value of the property, which can be one of the defined types
+}
+
+export interface AgentNode {
+  type: "AgentDeclaration";
+  name: string; // e.g., "MyAgent"
+  properties: AgentPropertyNode[]; // Array of agent properties
+}
+
+export type ASTNode = SchemaNode | AgentNode;
 
 export interface ProgramNode {
   type: "Program";
