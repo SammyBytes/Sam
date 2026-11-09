@@ -1,4 +1,5 @@
 import type { AgentPropertyNode } from "../../parser/ast";
+import { getPropertyValue } from "../generators/generateAgent";
 import type { IAgentStrategy } from "./agentStrategy";
 
 /**
@@ -9,16 +10,20 @@ export class ClaudeCodeStrategy implements IAgentStrategy {
   buildArgs(props: Map<string, AgentPropertyNode>): string[] {
     const argsStatements: string[] = ['args.push("-p", prompt);'];
 
-    if (props.has("system_prompt")) {
-      const val = props.get("system_prompt")?.value;
-      argsStatements.push(
-        `args.push("--system-prompt", ${JSON.stringify(val)});`,
+  const sysPrompt = getPropertyValue(props.get("system_prompt"));
+    const sysPromptFile = getPropertyValue(props.get("system_prompt_file"));
+   
+    
+    if (sysPrompt && sysPromptFile) {
+      throw new Error(
+        "ValidationError: 'system_prompt' and 'system_prompt_file' are mutually exclusive",
       );
-    } else if (props.has("system_prompt_file")) {
-      const val = props.get("system_prompt_file")?.value;
-      argsStatements.push(
-        `args.push("--system-prompt-file", ${JSON.stringify(val)});`,
-      );
+    }
+
+   if (sysPrompt) {
+      argsStatements.push(`args.push("--system-prompt", ${JSON.stringify(String(sysPrompt))});`);
+    } else if (sysPromptFile) {
+      argsStatements.push(`args.push("--system-prompt-file", ${JSON.stringify(String(sysPromptFile))});`);
     }
 
     return argsStatements;
