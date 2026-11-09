@@ -9,12 +9,22 @@ export function parseAgent(context: IParserContext): AgentNode {
   context.consume("LBRACE", "Expected '{' after agent name");
 
   const properties: AgentPropertyNode[] = [];
+  const propertiesNameSet = new Set<string>();
 
   while (!context.isAtEnd() && context.peek().type !== "RBRACE") {
     const propertyNameToken = context.consume(
       "IDENTIFIER",
       "Expected property name",
     );
+
+    if (propertiesNameSet.has(propertyNameToken.value)) {
+      throw new Error(
+        `SyntaxError: Duplicate property name '${propertyNameToken.value}' at line ${propertyNameToken.line}, column ${propertyNameToken.column}. Each property name must be unique within an agent declaration.`,
+      );
+    }
+
+    propertiesNameSet.add(propertyNameToken.value);
+
     context.consume("COLON", "Expected ':' after property name");
 
     const valueToken = context.peek();
@@ -23,26 +33,38 @@ export function parseAgent(context: IParserContext): AgentNode {
     switch (valueToken.type) {
       case "STRING":
         value = { type: "StringLiteral", value: valueToken.value };
+        context.advance(); // Consume the string token
         break;
       case "NUMBER":
         value = { type: "NumberLiteral", value: parseFloat(valueToken.value) };
+        context.advance(); // Consume the number token
         break;
       case "BOOLEAN":
         value = { type: "BooleanLiteral", value: valueToken.value === "true" };
+        context.advance(); // Consume the boolean token
         break;
       case "IDENTIFIER":
         value = { type: "Identifier", value: valueToken.value };
+        context.advance(); // Consume the identifier token
         break;
       case "ENV":
-        value = { type: "EnvLiteral", value: valueToken.value };
+        context.advance(); // Consume the 'ENV' token
+        context.consume("LPAREN", "Expected '(' after 'env'");
+        const envVarToken = context.consume(
+          "STRING",
+          "Expected environment variable name inside 'env()'",
+        );
+        context.consume(
+          "RPAREN",
+          "Expected ')' after environment variable name",
+        );
+        value = { type: "EnvLiteral", value: envVarToken.value };
         break;
       default:
         throw new Error(
           `SyntaxError: Unexpected token '${valueToken.value}' at line ${valueToken.line}, column ${valueToken.column}. Expected a value for property '${propertyNameToken.value}'.`,
         );
     }
-
-    context.advance(); // Consume the value token
 
     properties.push({
       type: "AgentProperty",
@@ -57,9 +79,32 @@ export function parseAgent(context: IParserContext): AgentNode {
 
   context.consume("RBRACE", "Expected '}' after agent properties");
 
+  // Validate required properties
+  validateAgentProperties(nameToken.value, propertiesNameSet);
+
   return {
     type: "AgentDeclaration",
     name: nameToken.value,
     properties,
   };
+}
+
+function validateAgentProperties(agentName: string, keys: Set<string>) {
+  if (!keys.has("runner")) {
+    throw new Error(
+      `ValidationError in agent '${agentName}': Missing required property 'runner'`,
+    );
+  }
+
+  if (!keys.has("workspace")) {
+    throw new Error(
+      `ValidationError in agent '${agentName}': Missing required property 'workspace'`,
+    );
+  }
+
+  if (keys.has("system_prompt") && keys.has("system_prompt_file")) {
+    throw new Error(
+      `ValidationError in agent '${agentName}': 'system_prompt' and 'system_prompt_file' are mutually exclusive`,
+    );
+  }
 }
