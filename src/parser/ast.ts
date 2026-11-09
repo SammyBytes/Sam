@@ -33,6 +33,10 @@ export interface AgentNode {
   properties: AgentPropertyNode[]; // Array of agent properties
 }
 
+//------------------------------------------------------------------
+// AST Node Types
+//------------------------------------------------------------------
+
 export type ASTNode = SchemaNode | AgentNode;
 
 export interface ProgramNode {
