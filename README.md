@@ -280,9 +280,8 @@ bun run src/cli.ts audit.sb -o dist/agent.ts
 - **v0.1.0 — The Core** *(Done)*: Lexer, basic Parser, and initial `schema` declaration support.
 - **v0.1.1 — Codegen & Zod** *(Done)*: TypeScript/Zod emission for schemas, CLI file output, and unit test coverage.
 - **v0.2.0 — Agents & Grammar** *(Done)*: `agent` declarations, `AgentNode` with a discriminated property union, fail-early static validation, and Strategy-based codegen to `Bun.spawn` for `claude_code` and `mock` runners.
-- **v0.2.1 — In-Memory JIT Runtime** *(Next)*: Direct execution CLI runner (`sam run main.sb` / `sam main.sb`), ephemeral in-memory transpilation, auto-execution wrappers, and interactive execution without explicit `.ts` intermediate file writing.
-- **v0.3.0 — Flows & Orchestration**: Implementation of `flow` blocks, agent chaining, pipeline context passing, and structured output contract verification (`use Agent<Schema>()`).
-- **v0.4.0 — CLI Orchestrator**: Cargo-style command-line tools, richer diagnostics, formatting options, and standalone binary compilation via `bun build --compile`.
+- **v0.3.0 — Flows & Orchestration** *(Current Target)*: Implementation of `flow` blocks, agent chaining, pipeline context passing, control flow constructs (`if/else`, variables), and structured output validation (`use Agent<Schema>()`).
+- **v0.4.0 — Direct CLI Runner & Entrypoints**: In-memory execution (`sam run script.sb`), default `flow main` convention with automatic fallback to the first declared `flow`, Cargo-style CLI commands, and standalone binary builds (`bun build --compile`).
 - **v0.5.0 — Models & Integrations**: Native LLM `model` support, provider adapters, webhook triggers, contract validation loops, and retries.
 - **v1.0.0 — Self-Hosting**: Complete rewriting of the compiler in Sam (`.sb`), achieving total independence from TypeScript.
 
