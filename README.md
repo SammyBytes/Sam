@@ -6,12 +6,15 @@ Sam is a hobby-grade domain-specific language designed to describe, compose, and
 
 > **Project Status: Active Development (`v0.2.0`).**
 > This is a personal hobby project built to explore compiler design and agent orchestration. The core engine is currently implemented in **TypeScript** on top of the **Bun** runtime, with a long-term goal of achieving *self-hosting* by version `v1.0.0`. Syntax and public interfaces are subject to change.
+>
+> The repository is a **Bun Workspaces monorepo**: `@sam-lang/compiler` is the temporary bootstrap toolchain (retired in `v1.0.0`) and `@sam-lang/runtime` is the upcoming execution SDK.
 
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Monorepo Packages](#monorepo-packages)
 - [What Works in v0.2.0](#what-works-in-v020)
 - [Key Features](#key-features)
 - [The Value Proposition](#the-value-proposition)
@@ -35,6 +38,15 @@ A `.sb` program is designed to natively integrate:
 - **Flows** — Imperative/declarative control flow procedures to automate file system tasks and system workflows.
 
 The Sam CLI processes these files, generates a TypeScript source artifact — **Zod** schemas for data contracts and **`Bun.spawn`**-powered functions for agents — and leverages native **Bun** capabilities to execute it.
+
+## Monorepo Packages
+
+| Package | Description | Status |
+| :------ | :---------- | :----- |
+| [`@sam-lang/compiler`](./packages/compiler) | Lexer, parser, codegen, and CLI for `.sb` files. | **Bootstrap** — temporary TypeScript toolchain, retired in `v1.0.0` when Sam achieves self-hosting. |
+| [`@sam-lang/runtime`](./packages/runtime) | Execution SDK for Sam agents and flows. | **Scaffold** — source implementation planned for `v0.3.0`. |
+
+Both packages are published with `publishConfig.access: "public"` under the `@sam-lang` npm scope.
 
 ## What Works in v0.2.0
 
@@ -135,6 +147,8 @@ Building Sam bridges the gap between raw terminal tools and high-level AI orches
 
 ### Install dependencies
 
+Run from the monorepo root; Bun links the workspace packages automatically:
+
 ```bash
 bun install
 ```
@@ -142,7 +156,7 @@ bun install
 ### Compile a `.sb` file
 
 ```bash
-bun run src/cli.ts examples/basic_agent.sb -o dist/agent.ts
+bun run sam examples/basic_agent.sb -o dist/agent.ts
 ```
 
 Expected CLI output:
@@ -154,13 +168,52 @@ Compiled successfully: examples/basic_agent.sb -> dist/agent.ts
 Omit `-o` to print the generated TypeScript to stdout:
 
 ```bash
-bun run src/cli.ts examples/basic_agent.sb
+bun run sam examples/basic_agent.sb
 ```
 
 Use `--help` for the available options:
 
 ```bash
-bun run src/cli.ts --help
+bun run sam --help
+```
+
+The equivalent direct invocation is:
+
+```bash
+bun run packages/compiler/src/cli.ts examples/basic_agent.sb -o dist/agent.ts
+```
+
+### Run the test suite
+
+```bash
+bun test
+```
+
+Tests inside `packages/compiler` import the compiler through the workspace link (`@sam-lang/compiler`), which verifies package resolution as part of the test run.
+
+### Build all packages
+
+```bash
+bun run build
+```
+
+This bundles the compiler entry points into `packages/compiler/dist` and runs the runtime scaffold build step.
+
+### Use the compiler API
+
+```ts
+import { generateCode, Parser, tokenize } from "@sam-lang/compiler";
+
+const source = await Bun.file("examples/basic_schema.sb").text();
+const ast = new Parser(tokenize(source)).parse();
+
+console.log(generateCode(ast));
+```
+
+A runnable version lives in [`examples/compile.ts`](./examples/compile.ts):
+
+```bash
+bun run examples/compile.ts
 ```
 
 ### Run the generated artifact
@@ -182,12 +235,6 @@ If the compiled output includes `schema` declarations, install Zod before execut
 
 ```bash
 bun add zod
-```
-
-### Run the test suite
-
-```bash
-bun test
 ```
 
 ## Language Reference
@@ -248,28 +295,40 @@ agent MockAuditor {
 Save it as `audit.sb` and compile it with:
 
 ```bash
-bun run src/cli.ts audit.sb -o dist/agent.ts
+bun run sam audit.sb -o dist/agent.ts
 ```
 
 ## Repository Structure
 
 ```
 .
-├── src/
-│   ├── cli.ts        # CLI entry point (delegates to the compiler pipeline)
-│   ├── index.ts      # Compiler pipeline (Lexer -> Parser -> Codegen)
-│   ├── lexer/        # Lexical analysis and tokenization
-│   ├── parser/
-│   │   ├── ast.ts    # AST nodes (SchemaNode, AgentNode, property union)
-│   │   └── parsers/  # Recursive-descent parsers (schema, agent)
-│   ├── codegen/
-│   │   ├── generators/ # Schema and agent code emitters
-│   │   └── strategies/ # IAgentStrategy implementations (claude_code, mock)
-│   └── cli/          # Reserved for the future CLI orchestrator
-├── examples/         # Sample .sb programs
+├── packages/
+│   ├── compiler/                 # @sam-lang/compiler (bootstrap, retired in v1.0.0)
+│   │   ├── src/
+│   │   │   ├── cli.ts            # CLI entry point
+│   │   │   ├── index.ts          # Compiler pipeline (Lexer -> Parser -> Codegen)
+│   │   │   ├── lexer/            # Lexical analysis and tokenization
+│   │   │   ├── parser/
+│   │   │   │   ├── ast.ts        # AST nodes (SchemaNode, AgentNode, property union)
+│   │   │   │   └── parsers/      # Recursive-descent parsers (schema, agent)
+│   │   │   └── codegen/
+│   │   │       ├── generators/   # Schema and agent code emitters
+│   │   │       └── strategies/   # IAgentStrategy implementations (claude_code, mock)
+│   │   ├── README.md
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── runtime/                  # @sam-lang/runtime (SDK scaffold)
+│       ├── src/                  # Placeholder only (.gitkeep); sources land in v0.3.0
+│       ├── package.json
+│       └── tsconfig.json
+├── examples/                     # Sample .sb programs and API usage
 │   ├── basic_schema.sb
-│   └── basic_agent.sb
-├── dist/             # Generated TypeScript output
+│   ├── basic_agent.sb
+│   └── compile.ts                # Imports @sam-lang/compiler via workspace link
+├── dist/                         # Generated TypeScript output
+├── package.json                  # Workspace root (private)
+├── tsconfig.json                 # Shared compiler options
+├── bun.lock
 ├── LICENSE-MIT
 ├── LICENSE-APACHE
 └── README.md
@@ -279,11 +338,11 @@ bun run src/cli.ts audit.sb -o dist/agent.ts
 
 * **v0.1.0 — The Core** *(Done)*: Lexer, basic Parser, and initial `schema` declaration support.
 * **v0.1.1 — Codegen & Zod** *(Done)*: TypeScript/Zod emission for schemas, CLI file output, and unit test coverage.
-* **v0.2.0 — Agents & Grammar** *(Done)*: `agent` declarations, `AgentNode` with a discriminated property union, fail-early static validation, and Strategy-based codegen to `Bun.spawn` for `claude_code` and `mock` runners.
-* **v0.3.0 — Flows & Runtime SDK** *(Current Target)*: Implementation of `flow` blocks, agent invocation syntax (`use Agent<Schema>()`), variable bindings (`let`), pipelines, control flow (`if/else`), and the creation of the `@sam/runtime` SDK to extract execution logic away from codegen.
+* **v0.2.0 — Agents & Grammar** *(Done)*: `agent` declarations, `AgentNode` with a discriminated property union, fail-early static validation, Strategy-based codegen to `Bun.spawn` for `claude_code` and `mock` runners, and the Bun Workspaces split into `@sam-lang/compiler` and `@sam-lang/runtime`.
+* **v0.3.0 — Flows & Runtime SDK** *(Current Target)*: Implementation of `flow` blocks, agent invocation syntax (`use Agent<Schema>()`), variable bindings (`let`), pipelines, control flow (`if/else`), and the first source implementation of the `@sam-lang/runtime` SDK to extract execution logic away from codegen.
 * **v0.4.0 — Direct CLI Runner & Binary**: Native `sam run script.sb` orchestrator executing compiled flows via ephemeral files in `os.tmpdir()` with `finally` cleanup, `flow main` convention support, and standalone CLI binaries (`bun build --compile`) for CI/CD and direct distribution.
 * **v0.5.0 — Models & Integrations**: Native LLM `model` support, provider adapters, webhook triggers, contract validation loops, and retries.
-* **v1.0.0 — Self-Hosting**: Complete rewriting of the compiler in Sam (`.sb`), achieving total independence from TypeScript.
+* **v1.0.0 — Self-Hosting**: Complete rewriting of the compiler in Sam (`.sb`), achieving total independence from TypeScript. `@sam-lang/compiler` is deprecated and retired, replaced by the self-hosted compiler.
 
 ## Design Principles
 

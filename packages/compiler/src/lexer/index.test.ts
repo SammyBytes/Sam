@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { tokenize } from "./index.ts";
+import { tokenize } from "@sam-lang/compiler";
 
 test("Should tokenize a simple schema definition", () => {
   const code = `schema TestSchema { active: true }`;

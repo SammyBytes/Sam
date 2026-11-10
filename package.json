@@ -1,17 +1,21 @@
 {
   "name": "sam",
   "version": "0.2.0",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "test": "bun test",
-    "sam": "bun run src/index.ts"
+    "build": "bun run --filter '*' build",
+    "sam": "bun run packages/compiler/src/cli.ts",
+    "compile:example": "bun run packages/compiler/src/cli.ts examples/basic_schema.sb -o dist/output.ts"
   },
-  "peerDependencies": {
+  "devDependencies": {
+    "@sam-lang/compiler": "workspace:*",
+    "@sam-lang/runtime": "workspace:*",
+    "@types/bun": "latest",
     "typescript": "^7"
   }
 }

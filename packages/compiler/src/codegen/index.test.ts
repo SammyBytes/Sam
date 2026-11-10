@@ -1,7 +1,5 @@
 import { test, expect } from "bun:test";
-import { tokenize } from "../lexer";
-import { Parser } from "../parser";
-import { generateCode } from "./index";
+import { generateCode, Parser, tokenize } from "@sam-lang/compiler";
 
 test("should generate TypeScript with Zod schemas from a .sb program", () => {
   const code = `

@@ -2,7 +2,21 @@ import { generateCode } from "./codegen";
 import { tokenize } from "./lexer";
 import { Parser } from "./parser";
 
-async function main() {
+export { generateCode } from "./codegen";
+export { tokenize } from "./lexer";
+export type { Token, TokenType } from "./lexer";
+export { Parser } from "./parser";
+export type {
+  AgentNode,
+  AgentPropertyNode,
+  AgentPropertyType,
+  ASTNode,
+  FieldNode,
+  ProgramNode,
+  SchemaNode,
+} from "./parser/ast";
+
+export async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
@@ -58,4 +72,6 @@ Options:
   }
 }
 
-main();
+if (import.meta.main) {
+  main();
+}

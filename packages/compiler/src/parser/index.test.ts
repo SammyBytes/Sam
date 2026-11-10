@@ -1,6 +1,5 @@
 import { test, expect } from "bun:test";
-import { tokenize } from "../lexer";
-import { Parser } from "./index";
+import { Parser, tokenize } from "@sam-lang/compiler";
 
 test("should build a valid AST from a schema block", () => {
   const code = `
