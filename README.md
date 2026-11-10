@@ -277,13 +277,13 @@ bun run src/cli.ts audit.sb -o dist/agent.ts
 
 ## Roadmap
 
-- **v0.1.0 — The Core** *(Done)*: Lexer, basic Parser, and initial `schema` declaration support.
-- **v0.1.1 — Codegen & Zod** *(Done)*: TypeScript/Zod emission for schemas, CLI file output, and unit test coverage.
-- **v0.2.0 — Agents & Grammar** *(Done)*: `agent` declarations, `AgentNode` with a discriminated property union, fail-early static validation, and Strategy-based codegen to `Bun.spawn` for `claude_code` and `mock` runners.
-- **v0.3.0 — Flows & Orchestration** *(Current Target)*: Implementation of `flow` blocks, agent chaining, pipeline context passing, control flow constructs (`if/else`, variables), and structured output validation (`use Agent<Schema>()`).
-- **v0.4.0 — Direct CLI Runner & Entrypoints**: In-memory execution (`sam run script.sb`), default `flow main` convention with automatic fallback to the first declared `flow`, Cargo-style CLI commands, and standalone binary builds (`bun build --compile`).
-- **v0.5.0 — Models & Integrations**: Native LLM `model` support, provider adapters, webhook triggers, contract validation loops, and retries.
-- **v1.0.0 — Self-Hosting**: Complete rewriting of the compiler in Sam (`.sb`), achieving total independence from TypeScript.
+* **v0.1.0 — The Core** *(Done)*: Lexer, basic Parser, and initial `schema` declaration support.
+* **v0.1.1 — Codegen & Zod** *(Done)*: TypeScript/Zod emission for schemas, CLI file output, and unit test coverage.
+* **v0.2.0 — Agents & Grammar** *(Done)*: `agent` declarations, `AgentNode` with a discriminated property union, fail-early static validation, and Strategy-based codegen to `Bun.spawn` for `claude_code` and `mock` runners.
+* **v0.3.0 — Flows & Runtime SDK** *(Current Target)*: Implementation of `flow` blocks, agent invocation syntax (`use Agent<Schema>()`), variable bindings (`let`), pipelines, control flow (`if/else`), and the creation of the `@sam/runtime` SDK to extract execution logic away from codegen.
+* **v0.4.0 — Direct CLI Runner & Binary**: Native `sam run script.sb` orchestrator executing compiled flows via ephemeral files in `os.tmpdir()` with `finally` cleanup, `flow main` convention support, and standalone CLI binaries (`bun build --compile`) for CI/CD and direct distribution.
+* **v0.5.0 — Models & Integrations**: Native LLM `model` support, provider adapters, webhook triggers, contract validation loops, and retries.
+* **v1.0.0 — Self-Hosting**: Complete rewriting of the compiler in Sam (`.sb`), achieving total independence from TypeScript.
 
 ## Design Principles
 
