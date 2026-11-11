@@ -1,3 +1,4 @@
+import { AgentRunner, type AgentRunnerKind } from "@sam-lang/runtime";
 import type { AgentNode, AgentPropertyNode, AgentPropertyType } from "../ast";
 import type { IParserContext } from "../types";
 
@@ -44,7 +45,7 @@ export function parseAgent(context: IParserContext): AgentNode {
         context.advance(); // Consume the boolean token
         break;
       case "IDENTIFIER":
-        value = { type: "Identifier", value: valueToken.value };
+        value = parseAgentKind(valueToken.value);
         context.advance(); // Consume the identifier token
         break;
       case "ENV":
@@ -87,6 +88,20 @@ export function parseAgent(context: IParserContext): AgentNode {
     name: nameToken.value,
     properties,
   };
+}
+
+function parseAgentKind(value: string): AgentPropertyType {
+  const isValidKind = Object.values(AgentRunner).includes(
+    value as AgentRunnerKind,
+  );
+  if (!isValidKind) {
+    throw new Error(
+      `SyntaxError: Invalid agent runner kind '${value}'. Expected one of: ${Object.values(
+        AgentRunner,
+      ).join(", ")}`,
+    );
+  }
+  return { type: "Identifier", value: value as AgentRunnerKind };
 }
 
 function validateAgentProperties(agentName: string, keys: Set<string>) {

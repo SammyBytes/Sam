@@ -1,11 +1,11 @@
-export const AgentRunnerKind = {
+export const AgentRunner = {
   CLAUDECODE: "claude_code",
   OPENCODE: "opencode",
   MOCK: "mock",
 } as const;
 
 export type AgentRunnerKind =
-  (typeof AgentRunnerKind)[keyof typeof AgentRunnerKind];
+  (typeof AgentRunner)[keyof typeof AgentRunner];
 
 export interface AgentRunnerConfig {
   name: string;
