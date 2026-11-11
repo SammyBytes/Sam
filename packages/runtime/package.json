@@ -1,13 +1,19 @@
 {
   "name": "@sam-lang/runtime",
   "version": "0.2.0",
-  "description": "Runtime SDK for Sam (.sb) agents and flows. Package scaffold; source implementation lands with the v0.3.0 runtime work.",
+  "description": "Runtime SDK for Sam (.sb) agents and flows.",
   "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "files": [
     "src"
   ],
   "scripts": {
-    "build": "echo 'runtime: no sources yet (scaffold)'",
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
     "test": "bun test"
   },
   "publishConfig": {

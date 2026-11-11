@@ -17,6 +17,9 @@
       "bin": {
         "sam": "./src/cli.ts",
       },
+      "dependencies": {
+        "@sam-lang/runtime": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "latest",
         "typescript": "^7",
