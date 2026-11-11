@@ -2,6 +2,8 @@
 // AST Node Types for Schema and Agent Declarations
 //------------------------------------------------------------------
 
+import type { AgentRunnerKind } from "@sam-lang/runtime";
+
 // ------------------------------------------------------------------
 // Schema Types (v0.1.0)
 // ------------------------------------------------------------------
@@ -22,7 +24,7 @@ export interface SchemaNode {
 // ------------------------------------------------------------------
 
 export type AgentPropertyType =
-  | { type: "Identifier"; value: string } // e.g., "claude_code", "opencode"
+  | { type: "Identifier"; value: AgentRunnerKind } // e.g., "claude_code", "opencode"
   | { type: "StringLiteral"; value: string } // e.g., "./src"
   | { type: "NumberLiteral"; value: number } // e.g., 42
   | { type: "BooleanLiteral"; value: boolean } // e.g., true
