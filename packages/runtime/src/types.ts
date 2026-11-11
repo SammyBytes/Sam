@@ -1,15 +1,15 @@
-export const AgentRunnerKid = {
-  CLAUDECODE: Symbol.for("claude_code"),
-  OPENCODE: Symbol.for("open_code"),
-  MOCK: Symbol.for("mock"),
+export const AgentRunnerKind = {
+  CLAUDECODE: "claude_code",
+  OPENCODE: "opencode",
+  MOCK: "mock",
 } as const;
 
-export type AgentRunnerKid =
-  (typeof AgentRunnerKid)[keyof typeof AgentRunnerKid];
+export type AgentRunnerKind =
+  (typeof AgentRunnerKind)[keyof typeof AgentRunnerKind];
 
 export interface AgentRunnerConfig {
   name: string;
-  runner: AgentRunnerKid;
+  runner: AgentRunnerKind;
   workspace: string;
   systemPrompt?: string;
   systemPromptFile?: string;
