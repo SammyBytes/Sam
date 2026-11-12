@@ -20,6 +20,7 @@ export type TokenType =
   | "LPAREN" // "("
   | "RPAREN" // ")"
   | "COLON" // ":"
+  | "SEMICOLON" // ";"
   | "DOT" // "."
   | "COMMA" // ","
   | "EQUALS" // "="
@@ -136,6 +137,12 @@ export function tokenize(input: string): Token[] {
 
     if (char === ":") {
       tokens.push({ type: "COLON", value: char, line, column });
+      advance(1);
+      continue;
+    }
+
+    if (expectChar(";")) {
+      tokens.push({ type: "SEMICOLON", value: char, line, column });
       advance(1);
       continue;
     }
