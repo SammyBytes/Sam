@@ -7,7 +7,10 @@ export function parseStatement(context: IParserContext): StatementNode {
       return parseLetStatement(context);
 
     default:
-      throw new Error(`Unexpected token: ${context.peek().type}`);
+      return {
+        type: "ExpressionStatement",
+        expression: parseExpression(context),
+      };
   }
 }
 
