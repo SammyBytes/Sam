@@ -23,7 +23,7 @@ export class MockStrategy implements IAgentStrategy {
     if (systemPrompt) {
       args.push("--system-prompt", systemPrompt);
     }
-    return args.map((arg) => `args.push(${JSON.stringify(arg)});`);
+    return args;
   }
   getBinaryName(): string {
     return "bun";
