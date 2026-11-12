@@ -205,3 +205,137 @@ test("should throw SyntaxError on malformed if statements", () => {
   expect(() => new Parser(tokenize(missingParens)).parse()).toThrow();
   expect(() => new Parser(tokenize(missingBlock)).parse()).toThrow();
 });
+
+test("should parse MemberExpression for nested property access", () => {
+  const code = `
+    flow Inspect(audit: any) {
+      let level = audit.value.risk_level
+      return level
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  const flow = ast.body[0];
+  expect(flow.type).toBe("FlowDeclaration");
+
+  if (flow.type === "FlowDeclaration") {
+    expect(flow.body[0]).toEqual({
+      type: "LetStatement",
+      name: "level",
+      value: {
+        type: "MemberExpression",
+        object: {
+          type: "MemberExpression",
+          object: { type: "Identifier", name: "audit" },
+          property: "value",
+        },
+        property: "risk_level",
+      },
+    });
+  }
+});
+
+test("should parse UnaryExpression (!) and BinaryExpression (==, !=, <, >)", () => {
+  const code = `
+    flow Validate(res: any, count: number) {
+      if (!res.ok) {
+        return false
+      }
+      if (res.status != "error") {
+        let isHigh = count > 10
+        return isHigh
+      }
+      return res.code == 200
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  const flow = ast.body[0];
+  expect(flow.type).toBe("FlowDeclaration");
+
+  if (flow.type === "FlowDeclaration") {
+    expect(flow.body).toHaveLength(3);
+
+    // 1. if (!res.ok)
+    expect(flow.body[0]).toEqual({
+      type: "IfStatement",
+      condition: {
+        type: "UnaryExpression",
+        operator: "!",
+        argument: {
+          type: "MemberExpression",
+          object: { type: "Identifier", name: "res" },
+          property: "ok",
+        },
+      },
+      thenBranch: [
+        {
+          type: "ReturnStatement",
+          value: { type: "Literal", value: false },
+        },
+      ],
+      elseBranch: undefined,
+    });
+
+    // 2. if (res.status != "error")
+    expect(flow.body[1]).toEqual({
+      type: "IfStatement",
+      condition: {
+        type: "BinaryExpression",
+        operator: "!=",
+        left: {
+          type: "MemberExpression",
+          object: { type: "Identifier", name: "res" },
+          property: "status",
+        },
+        right: { type: "Literal", value: "error" },
+      },
+      thenBranch: [
+        {
+          type: "LetStatement",
+          name: "isHigh",
+          value: {
+            type: "BinaryExpression",
+            operator: ">",
+            left: { type: "Identifier", name: "count" },
+            right: { type: "Literal", value: 10 },
+          },
+        },
+        {
+          type: "ReturnStatement",
+          value: { type: "Identifier", name: "isHigh" },
+        },
+      ],
+      elseBranch: undefined,
+    });
+
+    // 3. return res.code == 200
+    expect(flow.body[2]).toEqual({
+      type: "ReturnStatement",
+      value: {
+        type: "BinaryExpression",
+        operator: "==",
+        left: {
+          type: "MemberExpression",
+          object: { type: "Identifier", name: "res" },
+          property: "code",
+        },
+        right: { type: "Literal", value: 200 },
+      },
+    });
+  }
+});
+
+test("should throw SyntaxError on incomplete binary or member expressions", () => {
+  const trailingDot = `flow Bad(a: any) { let x = a. }`;
+  const missingRightSide = `flow Bad(a: number) { if (a == ) { return } }`;
+
+  expect(() => new Parser(tokenize(trailingDot)).parse()).toThrow();
+  expect(() => new Parser(tokenize(missingRightSide)).parse()).toThrow();
+});
