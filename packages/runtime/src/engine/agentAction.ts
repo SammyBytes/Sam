@@ -3,6 +3,7 @@ import type { AgentError } from "../errors";
 import { err, ok, type Result } from "../result";
 import type { AgentConfig } from "./agentConfig";
 import { z } from "zod";
+import { MockStrategy } from "../strategies/agent/mockStrategy";
 
 type Runtime = {
   use: <TSchema>(
@@ -39,7 +40,17 @@ async function executeRunner(
         message: `Execution for runner ${agent.runner} is not implemented yet.`,
       });
     case "mock":
-      // Implement the logic for executing the mock runner
+      const runner = new MockStrategy();
+      const args = runner.buildArgs(
+        new Map([["system_prompt", agent.systemPrompt ?? ""]]),
+        schema,
+      );
+      const binaryName = runner.getBinaryName();
+
+      console.log(
+        `Executing mock runner with binary: ${binaryName} and args: ${args.join(" ")}`,
+      );
+
       return err({
         code: "EXECUTION_ERROR",
         agentName: agent.name,
