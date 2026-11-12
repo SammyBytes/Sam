@@ -7,7 +7,7 @@ import { MockStrategy } from "../strategies/agent/mockStrategy";
 import type { IAgentStrategy } from "../strategies/agent/agentStrategy";
 import { agentExecute } from "./processExecutor";
 
-type Runtime = {
+export type Runtime = {
   use: <TSchema>(
     agentName: string,
     inputPrompt: string,
