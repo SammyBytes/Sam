@@ -15,6 +15,7 @@ test("should generate TypeScript with Zod schemas from a .sb program", () => {
   const output = generateCode(ast);
 
   expect(output).toContain('import { z } from "zod";');
+  expect(output).not.toContain('import { createRuntime } from "@sam-lang/runtime";');
   expect(output).toContain("export const SecurityAuditSchema = z.object({");
   expect(output).toContain("has_vulnerabilities: z.boolean(),");
   expect(output).toContain("risk_level: z.string(),");
@@ -23,11 +24,12 @@ test("should generate TypeScript with Zod schemas from a .sb program", () => {
   );
 });
 
-test("should generate Bun.spawn code for an agent declaration", () => {
+test("should generate runtime agent config for an agent declaration", () => {
   const code = `
     agent QuickAuditor {
       runner: claude_code,
       workspace: "./src",
+      timeout: 30
     }
   `;
 
@@ -37,10 +39,12 @@ test("should generate Bun.spawn code for an agent declaration", () => {
   const output = generateCode(ast);
 
   expect(output).not.toContain('import { z } from "zod";');
-  expect(output).toContain("export async function runQuickAuditor(");
-  expect(output).toContain('const args = ["claude"];');
-  expect(output).toContain('cwd: options?.cwd ?? "./src"');
-  expect(output).toContain("Bun.spawn(args, {");
+  expect(output).toContain('import { createRuntime } from "@sam-lang/runtime";');
+  expect(output).toContain("const sam = createRuntime([");
+  expect(output).toContain(
+    '{ name: "QuickAuditor", runner: "claude_code", workspace: "./src", timeout: 30000 }',
+  );
+  expect(output).not.toContain("Bun.spawn");
 });
 
 test("should generate combined TypeScript for schemas and agents", () => {
@@ -61,8 +65,12 @@ test("should generate combined TypeScript for schemas and agents", () => {
   const output = generateCode(ast);
 
   expect(output).toContain('import { z } from "zod";');
+  expect(output).toContain('import { createRuntime } from "@sam-lang/runtime";');
   expect(output).toContain("export const ReportSchema = z.object({");
-  expect(output).toContain("export async function runCodeReviewer(");
+  expect(output).toContain("const sam = createRuntime([");
+  expect(output).toContain(
+    '{ name: "CodeReviewer", runner: "claude_code", workspace: "./src" }',
+  );
 });
 
 test("should return an empty string for an empty program", () => {
