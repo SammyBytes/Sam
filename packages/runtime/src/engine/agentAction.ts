@@ -4,6 +4,8 @@ import { err, ok, type Result } from "../result";
 import type { AgentConfig } from "./agentConfig";
 import { z } from "zod";
 import { MockStrategy } from "../strategies/agent/mockStrategy";
+import type { IAgentStrategy } from "../strategies/agent/agentStrategy";
+import { agentExecute } from "./processExecutor";
 
 type Runtime = {
   use: <TSchema>(
@@ -13,60 +15,31 @@ type Runtime = {
   ) => Promise<Result<TSchema, AgentError>>;
 };
 
+const strategyRegistry = new Map<string, IAgentStrategy>([
+  ["mock", new MockStrategy()],
+  // ["claude_code", new ClaudeCodeStrategy()],
+  // ["opencode", new OpenCodeStrategy()],
+]);
+
 async function executeRunner(
   agent: AgentConfig,
   inputPrompt: string,
-  schema: z.ZodTypeAny,
+  schema?: z.ZodTypeAny,
 ): Promise<Result<string, AgentError>> {
-  switch (agent.runner) {
-    case "claude_code":
-      // Implement the logic for executing the claude_code runner
-      return err({
-        code: "EXECUTION_ERROR",
-        agentName: agent.name,
-        runner: agent.runner,
-        exitCode: null,
-        stderr: "",
-        message: `Execution for runner ${agent.runner} is not implemented yet.`,
-      });
-    case "opencode":
-      // Implement the logic for executing the opencode runner
-      return err({
-        code: "EXECUTION_ERROR",
-        agentName: agent.name,
-        runner: agent.runner,
-        exitCode: null,
-        stderr: "",
-        message: `Execution for runner ${agent.runner} is not implemented yet.`,
-      });
-    case "mock":
-      const runner = new MockStrategy();
-      const args = runner.buildArgs(
-        new Map([["system_prompt", agent.systemPrompt ?? ""]]),
-        schema,
-      );
-      const binaryName = runner.getBinaryName();
-
-      console.log(
-        `Executing mock runner with binary: ${binaryName} and args: ${args.join(" ")}`,
-      );
-
-      return err({
-        code: "EXECUTION_ERROR",
-        agentName: agent.name,
-        runner: agent.runner,
-        exitCode: null,
-        stderr: "",
-        message: `Execution for runner ${agent.runner} is not implemented yet.`,
-      });
-    default:
-      return err({
-        code: "RUNNER_NOT_SUPPORTED",
-        agentName: agent.name,
-        runner: agent.runner,
-        message: `Runner ${agent.runner} is not supported yet.`,
-      });
+  const strategy = strategyRegistry.get(agent.runner);
+  if (!strategy) {
+    return err({
+      code: "RUNNER_NOT_SUPPORTED",
+      agentName: agent.name,
+      runner: agent.runner,
+      message: `Runner '${agent.runner}' is not supported.`,
+    });
   }
+
+  const binary = strategy.getBinaryName();
+  const args = strategy.buildArgs(agent, inputPrompt, schema);
+
+  return agentExecute(agent, binary, args);
 }
 
 export function createRuntime(agents: AgentConfig[]): Runtime {
@@ -103,46 +76,33 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
         return result;
       }
 
-      let dataToParse = result.value;
-      if (typeof dataToParse !== "string") {
-        return err({
-          code: "PARSE_ERROR",
-          agentName,
-          message: `Expected string output from agent ${agentName}, but got ${typeof dataToParse}.`,
-        }) as Result<TSchema, AgentError>;
-      }
-
+      let parsedJson: unknown;
       try {
-        const cleanedData = dataToParse
+        const cleanedData = result.value
           .replace(/^```json\s*|\s*```$/g, "")
           .trim();
-
-        dataToParse = JSON.parse(cleanedData);
+        parsedJson = JSON.parse(cleanedData);
       } catch (jsonError) {
-        if (jsonError instanceof SyntaxError) {
-          return err({
-            code: "JSON_PARSE_ERROR",
-            agentName,
-            message: `Failed to parse JSON output from agent ${agentName}: ${jsonError.message}`,
-          }) as Result<TSchema, AgentError>;
-        }
-
         return err({
           code: "PARSE_ERROR",
           agentName,
-          message: `Unexpected error while parsing output from agent ${agentName}: ${jsonError}`,
-        }) as Result<TSchema, AgentError>;
+          rawOutput: result.value,
+          message: `Failed to parse JSON output from agent '${agentName}': ${
+            jsonError instanceof Error ? jsonError.message : String(jsonError)
+          }`,
+        });
       }
 
-      const parseResult = await schema.safeParseAsync(dataToParse);
+      const parseResult = await schema.safeParseAsync(parsedJson);
       if (!parseResult.success) {
         return err({
-          code: "PARSE_ERROR",
+          code: "VALIDATION_ERROR",
           agentName,
-          message: `Failed to parse result for agent ${agentName}.`,
-        }) as Result<TSchema, AgentError>;
+          rawOutput: result.value,
+          issues: parseResult.error.issues,
+          message: `Output from agent '${agentName}' failed schema validation.`,
+        });
       }
-
       return ok(parseResult.data);
     },
   };
