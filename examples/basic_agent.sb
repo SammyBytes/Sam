@@ -2,8 +2,3 @@ agent MockAuditor {
     runner: mock
     workspace: "./src"
 }
-
-agent ClaudeAuditor {
-    runner: claude_code,
-    workspace: "./src"
-}
