@@ -9,6 +9,9 @@ export function parseStatement(context: IParserContext): StatementNode {
 
     case "IF":
       return parseIfStatement(context);
+
+    case "RETURN":
+      return parseReturnStatement(context);
     default:
       return {
         type: "ExpressionStatement",
@@ -55,6 +58,28 @@ function parseIfStatement(context: IParserContext): StatementNode {
     condition,
     thenBranch,
     elseBranch,
+  };
+}
+
+function parseReturnStatement(context: IParserContext): StatementNode {
+  context.consume("RETURN", "Expected 'return' keyword");
+
+  let value: ExpressionNode | undefined = undefined;
+  if (
+    !context.isAtEnd() &&
+    context.peek().type !== "RBRACE" &&
+    context.peek().type !== "SEMICOLON"
+  ) {
+    value = parseExpression(context);
+  }
+
+  if (context.peek().type === "SEMICOLON") {
+    context.advance();
+  }
+
+  return {
+    type: "ReturnStatement",
+    value,
   };
 }
 
