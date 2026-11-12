@@ -1,6 +1,15 @@
 export type TokenType =
   | "SCHEMA"
   | "AGENT"
+  | "FLOW" // flow name();
+  | "PRIVATE" // private(...)
+  | "PARALLEL" // parallel(...)
+  | "USE" // use AgentName<TSchema>(inputPrompt, schema);
+  | "UNSAFE" // use unsafe AgentName(inputPrompt);
+  | "LET" // let variableName = value;
+  | "IF" // if (condition) { ... }
+  | "ELSE" // else { ... }
+  | "RETURN" // return value;
   | "ENV" // env(...)
   | "IDENTIFIER" // Names (ej: "boolean", "string", "SecurityAlert", "has_security_alerts")
   | "BOOLEAN" // Boolean literals (ej: true, false)
@@ -11,9 +20,16 @@ export type TokenType =
   | "LPAREN" // "("
   | "RPAREN" // ")"
   | "COLON" // ":"
+  | "DOT" // "."
   | "COMMA" // ","
   | "EQUALS" // "="
+  | "NOT_EQUALS" // "!="
+  | "GREATER_THAN" // ">"
+  | "LESS_THAN" // "<"
   | "EQUALS_EQUALS" // "=="
+  | "TEMPLATE_HEAD" // "`"
+  | "TEMPLATE_MIDDLE" // "${"
+  | "TEMPLATE_TAIL" // "}"
   | "EOF";
 
 export interface Token {
@@ -32,6 +48,15 @@ const KEYWORDS: Record<string, TokenType> = {
   env: "ENV",
   true: "BOOLEAN",
   false: "BOOLEAN",
+  flow: "FLOW",
+  private: "PRIVATE",
+  parallel: "PARALLEL",
+  use: "USE",
+  unsafe: "UNSAFE",
+  let: "LET",
+  if: "IF",
+  else: "ELSE",
+  return: "RETURN",
 };
 
 export function tokenize(input: string): Token[] {
