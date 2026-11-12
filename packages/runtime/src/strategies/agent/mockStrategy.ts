@@ -1,30 +1,54 @@
-import type { IAgentStrategy } from "@sam-lang/runtime";
-import type { z } from "zod";
-import { formatSchemaForPrompt } from "./helper";
+import { z } from "zod";
+import type { IAgentStrategy } from "./agentStrategy";
 import type { AgentConfig } from "../../engine/agentConfig";
-/**
- * MockStrategy is an implementation of the IAgentStrategy interface for testing purposes.
- * It provides methods to build command-line arguments and retrieve the binary name for a mock agent.
- */
+
+function generateMockFromSchema(schema: z.ZodTypeAny): unknown {
+  const jsonSchema = z.toJSONSchema(schema, { target: "openapi-3.0" }) as {
+    type?: string;
+    properties?: Record<string, { type?: string }>;
+  };
+
+  if (jsonSchema.type === "object" && jsonSchema.properties) {
+    const mockObj: Record<string, unknown> = {};
+
+    for (const [key, prop] of Object.entries(jsonSchema.properties)) {
+      switch (prop.type) {
+        case "boolean":
+          mockObj[key] = false;
+          break;
+        case "number":
+        case "integer":
+          mockObj[key] = 0;
+          break;
+        case "array":
+          mockObj[key] = [];
+          break;
+        default:
+          mockObj[key] = `mock_${key}`;
+          break;
+      }
+    }
+
+    return mockObj;
+  }
+
+  return {};
+}
+
 export class MockStrategy implements IAgentStrategy {
   getBinaryName(): string {
     return "bun";
   }
 
-  buildArgs(agent: AgentConfig, inputPrompt: string, schema?: z.ZodTypeAny): string[] {
-    const args: string[] = [];
-    let systemPrompt = agent.systemPrompt ?? "";
+  buildArgs(
+    _agent: AgentConfig,
+    inputPrompt: string,
+    schema?: z.ZodTypeAny,
+  ): string[] {
+    const payload = schema
+      ? JSON.stringify(generateMockFromSchema(schema))
+      : `Mock output for: ${inputPrompt}`;
 
-    if (schema) {
-      const jsonSchemaString = formatSchemaForPrompt(schema);
-      systemPrompt += `\n\n[OUTPUT CONTRACT]\nYou MUST respond with a valid JSON object matching this schema:\n${jsonSchemaString}`;
-    }
-
-    if (systemPrompt) {
-      args.push("--system-prompt", systemPrompt);
-    }
-
-    args.push(inputPrompt);
-    return args;
+    return ["-e", `console.log(${JSON.stringify(payload)})`];
   }
 }
