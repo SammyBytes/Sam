@@ -3,21 +3,20 @@ import { generateAgent } from "./generators/generateAgent";
 import { generateSchema } from "./generators/generateSchema";
 
 export const generateCode = (programNode: ProgramNode): string => {
-  const parts: string[] = [];
-  let requiresZod = false;
+  const schemas: string[] = [];
+  const agents: string[] = [];
 
   for (const node of programNode.body) {
     switch (node.type) {
       case "SchemaDeclaration": {
         const schemaCode = generateSchema(node);
-        parts.push(schemaCode);
-        requiresZod = true;
+        schemas.push(schemaCode);
         break;
       }
 
       case "AgentDeclaration": {
         const agentCode = generateAgent(node);
-        parts.push(agentCode);
+        agents.push(agentCode);
         break;
       }
 
@@ -27,11 +26,33 @@ export const generateCode = (programNode: ProgramNode): string => {
     }
   }
 
-  if (parts.length === 0) {
+  if (schemas.length === 0 && agents.length === 0) {
     return "";
   }
 
-  const imports = requiresZod ? `import { z } from "zod";\n\n` : "";
+  const imports: string[] = [];
+  if (schemas.length > 0) {
+    imports.push(`import { z } from "zod";`);
+  }
+  if (agents.length > 0) {
+    imports.push(`import type { AgentRunnerKind } from "@sam-lang/runtime";`);
+    imports.push(`import { createRuntime } from "@sam-lang/runtime";`);
+  }
 
-  return `${imports}${parts.join("\n\n")}`;
+  const sections: string[] = [];
+
+  if (imports.length > 0) {
+    sections.push(imports.join("\n"));
+  }
+
+  if (schemas.length > 0) {
+    sections.push(schemas.join("\n\n"));
+  }
+  if (agents.length > 0) {
+    sections.push(
+      `const sam = createRuntime([\n  ${agents.join(",\n  ")}\n]);`,
+    );
+  }
+
+  return sections.join("\n\n");
 };
