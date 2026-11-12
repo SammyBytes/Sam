@@ -12,10 +12,10 @@ type Runtime = {
   ) => Promise<Result<TSchema, AgentError>>;
 };
 
-async function executeRunner<TSchema>(
+async function executeRunner(
   agent: AgentConfig,
   inputPrompt: string,
-  schema?: z.ZodType<TSchema>,
+  schema: z.ZodTypeAny,
 ): Promise<Result<string, AgentError>> {
   switch (agent.runner) {
     case "claude_code":
