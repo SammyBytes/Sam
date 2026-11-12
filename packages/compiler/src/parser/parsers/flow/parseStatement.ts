@@ -1,6 +1,7 @@
 import type { ExpressionNode, FlowNode, StatementNode } from "../../ast";
 import type { IParserContext } from "../../types";
 import { parseBlock } from "./parseBlock";
+import { parseExpression } from "./parseExpression";
 
 export function parseStatement(context: IParserContext): StatementNode {
   switch (context.peek().type) {
@@ -12,6 +13,7 @@ export function parseStatement(context: IParserContext): StatementNode {
 
     case "RETURN":
       return parseReturnStatement(context);
+
     default:
       return {
         type: "ExpressionStatement",
@@ -80,13 +82,5 @@ function parseReturnStatement(context: IParserContext): StatementNode {
   return {
     type: "ReturnStatement",
     value,
-  };
-}
-
-function parseExpression(context: IParserContext): ExpressionNode {
-  const expressionToken = context.consume("IDENTIFIER", "Expected expression");
-  return {
-    type: "Identifier",
-    name: expressionToken.value,
   };
 }
