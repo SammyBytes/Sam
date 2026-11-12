@@ -1,0 +1,74 @@
+schema SecurityAudit {
+  has_vulnerabilities: boolean,
+  risk_level: string,
+  findings_count: number
+}
+
+schema PullRequest {
+  id: string,
+  author: string,
+  is_draft: boolean,
+  touches_auth: boolean
+}
+
+agent SecurityAuditor {
+  runner: claude_code,
+  workspace: "./src",
+  system_prompt: "Audit the pull request and report every security finding.",
+  timeout: 90
+}
+
+agent LocalReviewer {
+  runner: opencode,
+  workspace: env("REVIEW_WORKSPACE"),
+  system_prompt_file: "./prompts/reviewer.md",
+  max_tokens: 4096,
+  enabled: true
+}
+
+agent SandboxReviewer {
+  runner: mock,
+  workspace: "./tmp"
+}
+
+flow ReviewPullRequest(pr: PullRequest, audit: SecurityAudit) {
+  let isBlocked = pr.is_draft == true
+
+  if (isBlocked) {
+    return "skipped"
+  }
+
+  let needsDeepReview = audit.has_vulnerabilities
+  let criticalRisk = audit.risk_level == "critical"
+
+  if (needsDeepReview) {
+    if (criticalRisk) {
+      return "blocked"
+    } else {
+      let findings = audit.findings_count
+      if (findings > 10) {
+        return "needs_security_review"
+      }
+      return "needs_review"
+    }
+  }
+
+  let touchesSensitiveCode = pr.touches_auth
+  if (!touchesSensitiveCode) {
+    return "approved"
+  }
+
+  return "needs_auth_review"
+}
+
+private flow SummarizeAudit(audit: SecurityAudit, threshold: number) {
+  let findings = audit.findings_count
+  let withinBudget = findings < threshold
+  let risky = audit.risk_level != "low"
+
+  if (risky) {
+    return withinBudget
+  }
+
+  return true
+}

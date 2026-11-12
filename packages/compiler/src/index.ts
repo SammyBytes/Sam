@@ -25,17 +25,48 @@ Sam Compiler CLI (v0.2.0)
 Usage: sam <input.sb> [options]
 
 Options:
+  --ast                  Print the parsed AST as JSON instead of generating code
   -o, --output <file>    Specify output file path (default: stdout)
   -h, --help             Display this help message
     `);
     process.exit(0);
   }
 
-  const inputFile = args[0];
-  const outputFlagIndex = args.findIndex(
-    (arg) => arg === "-o" || arg === "--output",
-  );
-  const outputFile = outputFlagIndex !== -1 ? args[outputFlagIndex + 1] : null;
+  let inputFile: string | null = null;
+  let outputFile: string | null = null;
+  let printAst = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === "--ast") {
+      printAst = true;
+      continue;
+    }
+
+    if (arg === "-o" || arg === "--output") {
+      const value = args[i + 1];
+      if (!value) {
+        console.error(`Error: Missing value for '${arg}'.`);
+        process.exit(1);
+      }
+      outputFile = value;
+      i++;
+      continue;
+    }
+
+    if (arg.startsWith("-")) {
+      console.error(`Error: Unknown option '${arg}'.`);
+      process.exit(1);
+    }
+
+    if (inputFile) {
+      console.error(`Error: Unexpected argument '${arg}'.`);
+      process.exit(1);
+    }
+
+    inputFile = arg;
+  }
 
   try {
     // Read the input file .sb
@@ -57,14 +88,22 @@ Options:
     const tokens = tokenize(sourceCode);
     const parser = new Parser(tokens);
     const ast = parser.parse();
-    const compiledCode = generateCode(ast);
 
-    // Output the compiled code to the specified output file or stdout
+    // `--ast` stops before codegen and emits the AST as JSON.
+    const output = printAst
+      ? JSON.stringify(ast, null, 2)
+      : generateCode(ast);
+
+    // Output to the specified output file or stdout
     if (outputFile) {
-      await Bun.write(outputFile, compiledCode);
-      console.log(`Compiled successfully: ${inputFile} -> ${outputFile}`);
+      await Bun.write(outputFile, output);
+      console.log(
+        printAst
+          ? `AST written successfully: ${inputFile} -> ${outputFile}`
+          : `Compiled successfully: ${inputFile} -> ${outputFile}`,
+      );
     } else {
-      console.log(compiledCode);
+      console.log(output);
     }
   } catch (error: any) {
     console.error(`Compilation Error: ${error.message}`);

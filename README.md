@@ -171,6 +171,12 @@ Omit `-o` to print the generated TypeScript to stdout:
 bun run sam examples/basic_agent.sb
 ```
 
+Inspect the parsed AST of a `.sb` file as JSON (stops before codegen):
+
+```bash
+bun run ast examples/complex_program.sb
+```
+
 Use `--help` for the available options:
 
 ```bash

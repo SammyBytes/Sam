@@ -10,6 +10,7 @@
     "test": "bun test",
     "build": "bun run --filter '*' build",
     "sam": "bun run packages/compiler/src/cli.ts",
+    "ast": "bun run packages/compiler/src/cli.ts --ast",
     "compile:example": "bun run packages/compiler/src/cli.ts examples/basic_schema.sb -o dist/output.ts"
   },
   "devDependencies": {

@@ -23,7 +23,8 @@
   "scripts": {
     "build": "bun build ./src/index.ts ./src/cli.ts --outdir ./dist --target bun",
     "test": "bun test",
-    "sam": "bun run ./src/cli.ts"
+    "sam": "bun run ./src/cli.ts",
+    "ast": "bun run ./src/cli.ts --ast"
   },
   "publishConfig": {
     "access": "public"

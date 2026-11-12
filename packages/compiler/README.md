@@ -23,6 +23,12 @@ From the monorepo root:
 bun run sam examples/basic_schema.sb -o dist/output.ts
 ```
 
+Print the parsed AST as JSON without running codegen:
+
+```bash
+bun run ast examples/complex_program.sb -o dist/ast.json
+```
+
 Or import the API programmatically:
 
 ```ts
