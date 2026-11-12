@@ -35,7 +35,6 @@ export const generateCode = (programNode: ProgramNode): string => {
     imports.push(`import { z } from "zod";`);
   }
   if (agents.length > 0) {
-    imports.push(`import type { AgentRunnerKind } from "@sam-lang/runtime";`);
     imports.push(`import { createRuntime } from "@sam-lang/runtime";`);
   }
 
