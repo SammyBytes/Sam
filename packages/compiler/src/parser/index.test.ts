@@ -86,3 +86,122 @@ test("should throw SyntaxError on invalid flow parameters or let syntax", () => 
   expect(() => new Parser(tokenize(trailingComma)).parse()).toThrow();
   expect(() => new Parser(tokenize(missingEquals)).parse()).toThrow();
 });
+test("should parse primitive literals (string, number, boolean) in let statements", () => {
+  const code = `
+    flow Config() {
+      let greeting = "hello"
+      let maxRetries = 3
+      let isEnabled = true
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  const flow = ast.body[0];
+  expect(flow.type).toBe("FlowDeclaration");
+
+  if (flow.type === "FlowDeclaration") {
+    expect(flow.body).toHaveLength(3);
+    expect(flow.body[0]).toEqual({
+      type: "LetStatement",
+      name: "greeting",
+      value: { type: "Literal", value: "hello" },
+    });
+    expect(flow.body[1]).toEqual({
+      type: "LetStatement",
+      name: "maxRetries",
+      value: { type: "Literal", value: 3 },
+    });
+    expect(flow.body[2]).toEqual({
+      type: "LetStatement",
+      name: "isEnabled",
+      value: { type: "Literal", value: true },
+    });
+  }
+});
+
+test("should parse IfStatement with else branch and ReturnStatement", () => {
+  const code = `
+    flow Check(isReady: boolean) {
+      if (isReady) {
+        return "ok"
+      } else {
+        return false
+      }
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  const flow = ast.body[0];
+  expect(flow.type).toBe("FlowDeclaration");
+
+  if (flow.type === "FlowDeclaration") {
+    expect(flow.body).toHaveLength(1);
+    expect(flow.body[0]).toEqual({
+      type: "IfStatement",
+      condition: { type: "Identifier", name: "isReady" },
+      thenBranch: [
+        {
+          type: "ReturnStatement",
+          value: { type: "Literal", value: "ok" },
+        },
+      ],
+      elseBranch: [
+        {
+          type: "ReturnStatement",
+          value: { type: "Literal", value: false },
+        },
+      ],
+    });
+  }
+});
+
+test("should parse IfStatement without else and empty ReturnStatement", () => {
+  const code = `
+    flow Guard(skip: boolean) {
+      if (skip) {
+        return
+      }
+      return 1
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  const flow = ast.body[0];
+  expect(flow.type).toBe("FlowDeclaration");
+
+  if (flow.type === "FlowDeclaration") {
+    expect(flow.body).toHaveLength(2);
+    expect(flow.body[0]).toEqual({
+      type: "IfStatement",
+      condition: { type: "Identifier", name: "skip" },
+      thenBranch: [
+        {
+          type: "ReturnStatement",
+          value: undefined,
+        },
+      ],
+      elseBranch: undefined,
+    });
+    expect(flow.body[1]).toEqual({
+      type: "ReturnStatement",
+      value: { type: "Literal", value: 1 },
+    });
+  }
+});
+
+test("should throw SyntaxError on malformed if statements", () => {
+  const missingParens = `flow Bad(x: boolean) { if x { return } }`;
+  const missingBlock = `flow Bad(x: boolean) { if (x) return }`;
+
+  expect(() => new Parser(tokenize(missingParens)).parse()).toThrow();
+  expect(() => new Parser(tokenize(missingBlock)).parse()).toThrow();
+});
