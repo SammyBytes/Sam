@@ -23,6 +23,7 @@ export type TokenType =
   | "DOT" // "."
   | "COMMA" // ","
   | "EQUALS" // "="
+  | "NOT" // "!"
   | "NOT_EQUALS" // "!="
   | "GREATER_THAN" // ">"
   | "LESS_THAN" // "<"
@@ -77,6 +78,14 @@ export function tokenize(input: string): Token[] {
     }
   }
 
+  function expectNextChar(s: string): string | undefined {
+    return input[cursor + 1] === s ? input[cursor + 1] : undefined;
+  }
+
+  function expectChar(s: string): string | undefined {
+    return input[cursor] === s ? input[cursor] : undefined;
+  }
+
   while (cursor < input.length) {
     const char = input[cursor];
 
@@ -113,6 +122,18 @@ export function tokenize(input: string): Token[] {
       continue;
     }
 
+    if (expectChar(">")) {
+      tokens.push({ type: "GREATER_THAN", value: char, line, column });
+      advance(1);
+      continue;
+    }
+
+    if (expectChar("<")) {
+      tokens.push({ type: "LESS_THAN", value: char, line, column });
+      advance(1);
+      continue;
+    }
+
     if (char === ":") {
       tokens.push({ type: "COLON", value: char, line, column });
       advance(1);
@@ -125,8 +146,54 @@ export function tokenize(input: string): Token[] {
       continue;
     }
 
+    if (char === ".") {
+      tokens.push({ type: "DOT", value: char, line, column });
+      advance(1);
+      continue;
+    }
+
+    if (expectChar("!")) {
+      if (expectNextChar("=")) {
+        tokens.push({ type: "NOT_EQUALS", value: "!=", line, column });
+        advance(2);
+      } else {
+        tokens.push({ type: "NOT", value: "!", line, column });
+        advance(1);
+      }
+      continue;
+    }
+
+    // if(expectChar("$"))
+    // {
+    //   advance(1);
+    //   if(expectChar("{"))
+    //   {
+    //     tokens.push({ type: "TEMPLATE_MIDDLE", value: "${", line, column });
+    //     advance(1);
+    //   }
+    //   else
+    //   {
+    //     throw new Error(
+    //       `Unexpected character '$' at line ${line}, column ${column}`,
+    //     );
+    //   }
+    //   continue;
+    // }
+
+    // if (char === "`") {
+    //   tokens.push({ type: "TEMPLATE_HEAD", value: "`", line, column });
+    //   advance(1);
+    //   continue;
+    // }
+
+    // if (char === "}") {
+    //   tokens.push({ type: "TEMPLATE_TAIL", value: "}", line, column });
+    //   advance(1);
+    //   continue;
+    // }
+
     if (char === "=") {
-      if (input[cursor + 1] === "=") {
+      if (expectNextChar("=")) {
         tokens.push({ type: "EQUALS_EQUALS", value: "==", line, column });
         advance(2);
       } else {
