@@ -10,11 +10,53 @@ type Runtime = {
     inputPrompt: string,
     schema: z.ZodType<TSchema>,
   ) => Promise<Result<TSchema, AgentError>>;
-  useUnsafe: (
-    agentName: string,
-    inputPrompt: string,
-  ) => Promise<Result<string, AgentError>>;
 };
+
+async function executeRunner<TSchema>(
+  agent: AgentConfig,
+  inputPrompt: string,
+  schema?: z.ZodType<TSchema>,
+): Promise<Result<string, AgentError>> {
+  switch (agent.runner) {
+    case "claude_code":
+      // Implement the logic for executing the claude_code runner
+      return err({
+        code: "EXECUTION_ERROR",
+        agentName: agent.name,
+        runner: agent.runner,
+        exitCode: null,
+        stderr: "",
+        message: `Execution for runner ${agent.runner} is not implemented yet.`,
+      });
+    case "opencode":
+      // Implement the logic for executing the opencode runner
+      return err({
+        code: "EXECUTION_ERROR",
+        agentName: agent.name,
+        runner: agent.runner,
+        exitCode: null,
+        stderr: "",
+        message: `Execution for runner ${agent.runner} is not implemented yet.`,
+      });
+    case "mock":
+      // Implement the logic for executing the mock runner
+      return err({
+        code: "EXECUTION_ERROR",
+        agentName: agent.name,
+        runner: agent.runner,
+        exitCode: null,
+        stderr: "",
+        message: `Execution for runner ${agent.runner} is not implemented yet.`,
+      });
+    default:
+      return err({
+        code: "RUNNER_NOT_SUPPORTED",
+        agentName: agent.name,
+        runner: agent.runner,
+        message: `Runner ${agent.runner} is not supported yet.`,
+      });
+  }
+}
 
 export function createRuntime(agents: AgentConfig[]): Runtime {
   const agentMap = new Map<string, AgentConfig>();
@@ -28,51 +70,6 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
       agentName: "",
       message: "No agents are configured.",
     }) as unknown as Runtime;
-  }
-
-  async function executeRunner(
-    agent: AgentConfig,
-    inputPrompt: string,
-  ): Promise<Result<string, AgentError>> {
-    switch (agent.runner) {
-      case "claude_code":
-        // Implement the logic for executing the claude_code runner
-        return err({
-          code: "EXECUTION_ERROR",
-          agentName: agent.name,
-          runner: agent.runner,
-          exitCode: null,
-          stderr: "",
-          message: `Execution for runner ${agent.runner} is not implemented yet.`,
-        });
-      case "opencode":
-        // Implement the logic for executing the opencode runner
-        return err({
-          code: "EXECUTION_ERROR",
-          agentName: agent.name,
-          runner: agent.runner,
-          exitCode: null,
-          stderr: "",
-          message: `Execution for runner ${agent.runner} is not implemented yet.`,
-        });
-      case "mock":
-        // Implement the logic for executing the mock runner
-        return err({
-          code: "EXECUTION_ERROR",
-          agentName: agent.name,
-          runner: agent.runner,
-          exitCode: null,
-          stderr: "",
-          message: `Execution for runner ${agent.runner} is not implemented yet.`,
-        });
-      default:
-        return err({
-          code: "RUNNER_NOT_SUPPORTED",
-          agentName: agent.name,
-          runner: agent.runner,
-          message: `Runner ${agent.runner} is not supported yet.`,
-        });
-    }
   }
 
   return {
@@ -90,7 +87,7 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
         });
       }
 
-      const result = await executeRunner(agent, inputPrompt);
+      const result = await executeRunner(agent, inputPrompt, schema);
       if (!result.ok) {
         return result;
       }
@@ -136,21 +133,6 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
       }
 
       return ok(parseResult.data);
-    },
-    async useUnsafe(
-      agentName: string,
-      inputPrompt: string,
-    ): Promise<Result<string, AgentError>> {
-      const agent = agentMap.get(agentName);
-      if (!agent) {
-        return err({
-          code: "AGENT_NOT_FOUND",
-          agentName,
-          message: `Agent ${agentName} not found.`,
-        });
-      }
-
-      return executeRunner(agent, inputPrompt);
     },
   };
 }
