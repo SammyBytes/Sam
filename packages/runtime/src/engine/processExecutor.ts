@@ -1,6 +1,9 @@
 import type { AgentError } from "../errors";
-import { err, type Result } from "../result";
+import { err, ok, type Result } from "../result";
 import type { AgentConfig } from "./agentConfig";
+
+const stripAnsi = (text: string): string =>
+  text.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, "").trim();
 
 export async function agentExecute(
   agent: AgentConfig,
@@ -8,9 +11,10 @@ export async function agentExecute(
   args: string[],
 ): Promise<Result<string, AgentError>> {
   try {
-    const process = Bun.spawn({
+    const proc = Bun.spawn({
       cmd: [binary, ...args],
       cwd: agent.workspace,
+      stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -19,14 +23,14 @@ export async function agentExecute(
     const timer = agent.timeout
       ? setTimeout(() => {
           timedOut = true;
-          process.kill();
+          proc.kill();
         }, agent.timeout)
       : undefined;
 
-    const [stdout, stderr, exitCode] = await Promise.all([
-      process.stdout.getReader().read(),
-      process.stderr.getReader().read(),
-      process.exited,
+    const [rawStdout, rawStderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
     ]);
 
     if (timer) clearTimeout(timer);
@@ -41,20 +45,21 @@ export async function agentExecute(
     }
 
     if (exitCode !== 0) {
+      const cleanStderr = stripAnsi(rawStderr);
+      const cleanStdout = stripAnsi(rawStdout);
+      const details = [cleanStderr, cleanStdout].filter(Boolean).join("\n");
+
       return err({
         code: "EXECUTION_ERROR",
         agentName: agent.name,
         runner: agent.runner,
         exitCode,
-        stderr: new TextDecoder().decode(stderr.value),
-        message: `Agent '${agent.name}' failed with exit code ${exitCode}.`,
+        stderr: details,
+        message: `Agent '${agent.name}' failed with exit code ${exitCode}.${details ? ` Details: ${details}` : ""}`,
       });
     }
 
-    return {
-      ok: true,
-      value: new TextDecoder().decode(stdout.value).trim(),
-    };
+    return ok(stripAnsi(rawStdout));
   } catch (error) {
     return err({
       code: "EXECUTION_ERROR",
