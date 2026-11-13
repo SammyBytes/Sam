@@ -39,6 +39,9 @@
     "retirementVersion": "1.0.0",
     "note": "This TypeScript compiler exists only until the Sam self-hosted compiler replaces it in v1.0.0."
   },
+  "dependencies": {
+    "@sam-lang/runtime": "workspace:*"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^7"
