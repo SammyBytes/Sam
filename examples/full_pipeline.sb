@@ -1,0 +1,75 @@
+schema SecurityAudit {
+  has_vulnerabilities: boolean,
+  risk_level: string,
+  findings_count: number
+}
+
+schema ReleaseDecision {
+  approved: boolean,
+  summary: string
+}
+
+agent SecurityAuditor {
+  runner: mock,
+  workspace: "./src",
+  system_prompt: "Analyze the diff and return a structured SecurityAudit JSON.",
+  timeout: 45
+}
+
+agent ReleaseSummarizer {
+  runner: opencode,
+  workspace: env("RELEASE_WORKSPACE"),
+  system_prompt_file: "./prompts/release.md",
+  max_tokens: 2048,
+  enabled: true
+}
+
+private flow EvaluateSeverity(findings: number, maxAllowed: number) {
+  let exceedsLimit = findings > maxAllowed
+  if (exceedsLimit) {
+    return "critical"
+  }
+
+  let hasAny = findings != 0
+  if (hasAny) {
+    return "warning"
+  }
+
+  return "clean"
+}
+
+flow RunReleaseGate(targetBranch: string, skipAudit: boolean) {
+  if (skipAudit == true) {
+    return "bypassed"
+  }
+
+  let audit = use SecurityAuditor<SecurityAudit>(targetBranch)
+
+  if (!audit.ok) {
+    let rawFallback = use unsafe ReleaseSummarizer(targetBranch)
+    if (!rawFallback.ok) {
+      return "pipeline_error"
+    }
+    return rawFallback.value
+  }
+
+  let isRisky = audit.value.has_vulnerabilities
+  if (isRisky) {
+    if (audit.value.risk_level == "critical") {
+      return "blocked_critical"
+    } else {
+      let underThreshold = audit.value.findings_count < 5
+      if (underThreshold) {
+        return "approved_with_warnings"
+      }
+      return "blocked_too_many_findings"
+    }
+  }
+
+  let releaseNote = use ReleaseSummarizer<ReleaseDecision>(targetBranch)
+  if (releaseNote.ok) {
+    return releaseNote.value.summary
+  }
+
+  return "approved_clean"
+}

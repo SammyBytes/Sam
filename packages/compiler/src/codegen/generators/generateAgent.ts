@@ -17,9 +17,7 @@ export function generateAgent(agentNode: AgentNode): string {
   const systemPrompt = getPropertyValue(props.get("system_prompt")) as
     | string
     | undefined;
-  const systemPromptFile = getPropertyValue(props.get("system_prompt_file")) as
-    | string
-    | undefined;
+
   const timeoutSec = getPropertyValue(props.get("timeout")) as
     | number
     | undefined;
@@ -46,9 +44,6 @@ export function generateAgent(agentNode: AgentNode): string {
     configFields.push(`systemPrompt: ${JSON.stringify(systemPrompt)}`);
   }
 
-  if (systemPromptFile !== undefined) {
-    configFields.push(`systemPromptFile: ${JSON.stringify(systemPromptFile)}`);
-  }
 
   if (timeoutSec !== undefined) {
     configFields.push(`timeout: ${timeoutSec * 1000}`);

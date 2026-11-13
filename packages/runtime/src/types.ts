@@ -12,6 +12,5 @@ export interface AgentRunnerConfig {
   runner: AgentRunnerKind;
   workspace: string;
   systemPrompt?: string;
-  systemPromptFile?: string;
   timeout?: number;
 }
