@@ -1,0 +1,22 @@
+{
+  "name": "@sam-lang/cli",
+  "version": "0.4.0",
+  "description": "Command line interface for Sam (.sb) agents and flows.",
+  "type": "module",
+  "bin": {
+    "sam": "./src/cli.ts"
+  },
+  "main": "./dist/cli.js",
+  "scripts": {
+    "build": "bun build src/cli.ts --outdir dist --target bun",
+    "build:bin": "bun build src/cli.ts --compile --outfile ../../dist/sam"
+  },
+  "dependencies": {
+    "@sam-lang/compiler": "workspace:*",
+    "@sam-lang/runtime": "workspace:*",
+    "citty": "0.2.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
