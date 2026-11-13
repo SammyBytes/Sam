@@ -5,5 +5,6 @@ export type AgentConfig = {
   runner: AgentRunnerKind;
   workspace: string;
   systemPrompt?: string;
+  model?: string;
   timeout?: number;
 };

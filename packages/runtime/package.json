@@ -1,6 +1,6 @@
 {
   "name": "@sam-lang/runtime",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Runtime SDK for Sam (.sb) agents and flows.",
   "type": "module",
   "main": "./src/index.ts",

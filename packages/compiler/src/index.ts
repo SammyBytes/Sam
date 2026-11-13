@@ -16,17 +16,25 @@ export type {
   SchemaNode,
 } from "./parser/ast";
 
+export const VERSION = "0.3.0";
+
 export async function main() {
   const args = process.argv.slice(2);
 
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(VERSION);
+    process.exit(0);
+  }
+
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     console.log(`
-Sam Compiler CLI (v0.2.0)
+Sam Compiler CLI (v${VERSION})
 Usage: sam <input.sb> [options]
 
 Options:
   --ast                  Print the parsed AST as JSON instead of generating code
   -o, --output <file>    Specify output file path (default: stdout)
+  -v, --version          Print the CLI version
   -h, --help             Display this help message
     `);
     process.exit(0);

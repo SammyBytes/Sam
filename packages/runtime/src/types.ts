@@ -1,5 +1,4 @@
 export const AgentRunner = {
-  CLAUDECODE: "claude_code",
   OPENCODE: "opencode",
   MOCK: "mock",
 } as const;

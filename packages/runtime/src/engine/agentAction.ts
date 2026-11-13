@@ -22,7 +22,6 @@ export type Runtime = {
 const strategyRegistry = new Map<string, IAgentStrategy>([
   ["mock", new MockStrategy()],
   ["opencode", new OpenCodeStrategy()],
-  // ["claude_code", new ClaudeCodeStrategy()],
 ]);
 
 async function executeRunner(

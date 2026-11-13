@@ -24,7 +24,7 @@ export interface SchemaNode {
 // ------------------------------------------------------------------
 
 export type AgentPropertyType =
-  | { type: "Identifier"; value: AgentRunnerKind } // e.g., "claude_code", "opencode"
+  | { type: "Identifier"; value: AgentRunnerKind } // e.g., "opencode", "mock"
   | { type: "StringLiteral"; value: string } // e.g., "./src"
   | { type: "NumberLiteral"; value: number } // e.g., 42
   | { type: "BooleanLiteral"; value: boolean } // e.g., true

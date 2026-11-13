@@ -12,7 +12,7 @@ schema PullRequest {
 }
 
 agent SecurityAuditor {
-  runner: claude_code,
+  runner: opencode,
   workspace: "./src",
   system_prompt: "Audit the pull request and report every security finding.",
   timeout: 90

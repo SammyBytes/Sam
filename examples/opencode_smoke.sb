@@ -1,0 +1,23 @@
+schema CodeReview {
+  approved: boolean,
+  risk_level: string,
+  summary: string
+}
+
+agent Reviewer {
+  runner: opencode,
+  model: "opencode/deepseek-v4.1-flash-free",
+  workspace: ".",
+  system_prompt: "You are a concise code reviewer. Analyze the input and respond strictly with the requested JSON.",
+  timeout: 60
+}
+
+flow ReviewSnippet(codeSnippet: string) {
+  let result = use Reviewer<CodeReview>(codeSnippet)
+
+  if (!result.ok) {
+    return result
+  }
+
+  return result.value
+}

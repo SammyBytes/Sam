@@ -1,6 +1,6 @@
 {
   "name": "@sam-lang/compiler",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Bootstrap TypeScript compiler for the Sam (.sb) DSL. TEMPORARY TOOLCHAIN: it will be deprecated and retired in v1.0.0 when Sam achieves self-hosting.",
   "type": "module",
   "main": "./src/index.ts",

@@ -57,6 +57,10 @@ export function generateAgent(agentNode: AgentNode): string {
   if (timeoutSec !== undefined) {
     configFields.push(`timeout: ${timeoutSec * 1000}`);
   }
+  const modelProp = props.get("model");
+  if (modelProp !== undefined) {
+    configFields.push(`model: ${formatStringOrEnv(modelProp)}`);
+  }
 
   return `{ ${configFields.join(", ")} }`;
 }

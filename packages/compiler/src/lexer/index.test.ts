@@ -24,7 +24,7 @@ test("Should tokenize a simple schema definition", () => {
 });
 
 test("Should tokenize a simple agent definition", () => {
-  const code = `agent MyAgent { runner: claude_code }`;
+  const code = `agent MyAgent { runner: opencode }`;
   const tokens = tokenize(code);
 
   expect(tokens.length).toBeGreaterThanOrEqual(3);

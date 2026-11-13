@@ -29,7 +29,7 @@ test("should generate TypeScript with Zod schemas from a .sb program", () => {
 test("should generate runtime agent config for an agent declaration", () => {
   const code = `
     agent QuickAuditor {
-      runner: claude_code,
+      runner: opencode,
       workspace: "./src",
       timeout: 30
     }
@@ -46,7 +46,7 @@ test("should generate runtime agent config for an agent declaration", () => {
   );
   expect(output).toContain("const sam = createRuntime([");
   expect(output).toContain(
-    '{ name: "QuickAuditor", runner: "claude_code", workspace: "./src", timeout: 30000 }',
+    '{ name: "QuickAuditor", runner: "opencode", workspace: "./src", timeout: 30000 }',
   );
   expect(output).not.toContain("Bun.spawn");
 });
@@ -58,7 +58,7 @@ test("should generate combined TypeScript for schemas and agents", () => {
     }
 
     agent CodeReviewer {
-      runner: claude_code,
+      runner: opencode,
       workspace: "./src"
     }
   `;
@@ -75,7 +75,7 @@ test("should generate combined TypeScript for schemas and agents", () => {
   expect(output).toContain("export const ReportSchema = z.object({");
   expect(output).toContain("const sam = createRuntime([");
   expect(output).toContain(
-    '{ name: "CodeReviewer", runner: "claude_code", workspace: "./src" }',
+    '{ name: "CodeReviewer", runner: "opencode", workspace: "./src" }',
   );
 });
 
@@ -92,12 +92,12 @@ test("should generate async function for a complete program with schema, agent a
     }
 
     agent SecurityAuditor {
-      runner: claude_code,
+      runner: opencode,
       workspace: "./src"
     }
 
     agent QuickSummarizer {
-      runner: claude_code,
+      runner: opencode,
       workspace: "./src"
     }
 

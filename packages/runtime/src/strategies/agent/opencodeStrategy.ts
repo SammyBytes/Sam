@@ -30,7 +30,11 @@ export class OpenCodeStrategy implements IAgentStrategy {
         ].join("\n"),
       );
     }
-
-    return ["run", promptParts.join("\n\n")];
+    const args = ["run"];
+    if (agent.model) {
+      args.push("--model", agent.model);
+    }
+    args.push(promptParts.join("\n\n"));
+    return args;
   }
 }
