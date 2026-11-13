@@ -11,5 +11,5 @@ export function generateFlow(flowNode: FlowNode): string {
     })
     .join(", ");
 
-  return `${!functionIsPrivate ? "export " : ""} async function ${functionName}(${functionParams}) {\n  // TODO: Implement flow logic\n}`;
+  return `${!functionIsPrivate ? "export " : ""}async function ${functionName}(${functionParams}) {\n  // TODO: Implement flow logic\n}`;
 }
