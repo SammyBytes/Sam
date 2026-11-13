@@ -18,48 +18,43 @@ Sam treats agent orchestration as a language problem, not a shell-script problem
 
 The toolchain is built with **Bun**, **TypeScript**, **Citty**, and **Zod**. Programs are parsed into a typed AST, emitted as temporary TypeScript, validated at runtime, and executed through the `@sam-lang/runtime` SDK.
 
-## Key Features in v0.4.0
+## Your first program
 
-### Native direct execution
+A Sam program combines a contract, an executor, and a procedure. Create `review.sb`:
 
-Run a `.sb` file without a separate compile step:
+```sb
+schema CodeReview {
+  approved: boolean,
+  risk_level: string,
+  summary: string
+}
 
-```bash
-sam run review.sb "diff --git a/src/auth.ts b/src/auth.ts"
+agent Reviewer {
+  runner: opencode,
+  model: "opencode/deepseek-v4.1-flash-free",
+  workspace: ".",
+  system_prompt: "You are a concise code reviewer. Return the requested JSON.",
+  timeout: 60
+}
+
+flow main(diff: string) {
+  let review = use Reviewer<CodeReview>(diff)
+
+  if (!review.ok) {
+    return review
+  }
+
+  return review.value
+}
 ```
 
-Flow parameters are positional and coerced to their declared types (`string`, `number`, `boolean`). A flow with a single `string` parameter can also receive input from stdin:
+Each block has one job:
 
-```bash
-git diff | sam run review.sb
-```
+- **`schema CodeReview`** declares the exact JSON shape the agent must return. Sam generates a Zod schema and validates the response before the flow can use it.
+- **`agent Reviewer`** declares how to run the agent: which runner, which model, which workspace, and an optional system prompt and timeout.
+- **`flow main(diff: string)`** is the entry point. It receives the diff, invokes the agent with `use`, checks the `Result`, and returns the validated object.
 
-### Smart entry point resolution
-
-Sam chooses the entry flow deterministically:
-
-1. An explicit `--flow` / `-f` override.
-2. A public `flow main()`.
-3. The only public flow in the file.
-4. Otherwise, an actionable ambiguity error.
-
-Private flows can be called by other flows in the same file, but never invoked directly.
-
-### Standalone compiled binaries
-
-Build a single executable for Linux, macOS, or Windows with zero runtime `node_modules`:
-
-```bash
-bun build packages/cli/src/cli.ts --compile --outfile dist/sam
-```
-
-The generated binary bundles the CLI, compiler, runtime, Zod, and Citty. At execution time, `sam run` injects `z` and `createRuntime` into `globalThis`, so ephemeral generated code can resolve its dependencies without filesystem imports.
-
-### Safe ephemeral execution
-
-Direct execution emits TypeScript to `os.tmpdir()` as `sam-run-<uuid>.ts`, imports it, and always removes it in a `finally` block — including when the flow returns a failed `Result` or throws.
-
-## Quick Start
+## Installation
 
 ### Prerequisites
 
@@ -175,51 +170,36 @@ Copy-Item .\dist\sam.exe (Join-Path $binDir "sam.exe")
 
 Add `%USERPROFILE%\.local\bin` to the user `PATH` as shown in the Windows section above.
 
-### Write a program
+The generated binary is self-contained: it bundles the CLI, compiler, runtime, Zod, and Citty, and runs on Linux, macOS, or Windows without a runtime `node_modules`.
 
-Create `review.sb`:
+## Running programs
 
-```sb
-schema CodeReview {
-  approved: boolean,
-  risk_level: string,
-  summary: string
-}
+### Direct execution
 
-agent Reviewer {
-  runner: opencode,
-  model: "opencode/deepseek-v4.1-flash-free",
-  workspace: ".",
-  system_prompt: "You are a concise code reviewer. Return the requested JSON.",
-  timeout: 60
-}
-
-flow main(diff: string) {
-  let review = use Reviewer<CodeReview>(diff)
-
-  if (!review.ok) {
-    return review
-  }
-
-  return review.value
-}
-```
-
-### Execute it
-
-Pass the input as a positional argument:
+Run a `.sb` file without a separate compile step:
 
 ```bash
 sam run review.sb "diff --git a/src/auth.ts b/src/auth.ts"
 ```
 
-Or pipe it through stdin:
+Flow parameters are positional and coerced to their declared types (`string`, `number`, `boolean`). A flow with a single `string` parameter can also receive input from stdin:
 
 ```bash
 git diff | sam run review.sb
 ```
 
 The flow prints JSON for object results, raw text for string results, and exits with code `1` when it returns a failed `Result`.
+
+### Entry point resolution
+
+Sam chooses the entry flow deterministically:
+
+1. An explicit `--flow` / `-f` override.
+2. A public `flow main()`.
+3. The only public flow in the file.
+4. Otherwise, an actionable ambiguity error.
+
+Private flows can be called by other flows in the same file, but never invoked directly.
 
 ## CLI Reference
 
@@ -349,6 +329,8 @@ Both forms expose `ok`, `value`, and `error`, so flows can branch with `if (!res
 7. Removes the temporary file in a `finally` block.
 
 Because the generated file lives outside the project, it has no dependency on the caller's `node_modules` or working directory. The standalone binary supplies both runtime dependencies.
+
+The temporary file is always removed, including when the flow returns a failed `Result` or throws.
 
 ## Packages
 
