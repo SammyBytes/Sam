@@ -10,18 +10,16 @@
     ".": "./src/index.ts",
     "./lexer": "./src/lexer/index.ts",
     "./parser": "./src/parser/index.ts",
-    "./codegen": "./src/codegen/index.ts",
-    "./cli": "./src/cli.ts"
+    "./codegen": "./src/codegen/index.ts"
   },
+  "private": true,
   "files": [
     "src",
     "README.md"
   ],
   "scripts": {
-    "build": "bun build ./src/index.ts ./src/cli.ts --outdir ./dist --target bun",
-    "test": "bun test",
-    "sam": "bun run ./src/cli.ts",
-    "ast": "bun run ./src/cli.ts --ast"
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "test": "bun test"
   },
   "publishConfig": {
     "access": "public"
