@@ -42,7 +42,7 @@ export const generateCode = (programNode: ProgramNode): string => {
   if (schemas.length > 0) {
     imports.push(`import { z } from "zod";`);
   }
-  if (agents.length > 0) {
+  if (agents.length > 0 || flows.length > 0) {
     imports.push(`import { createRuntime } from "@sam-lang/runtime";`);
   }
 
@@ -55,10 +55,9 @@ export const generateCode = (programNode: ProgramNode): string => {
   if (schemas.length > 0) {
     sections.push(schemas.join("\n\n"));
   }
-  if (agents.length > 0) {
-    sections.push(
-      `const sam = createRuntime([\n  ${agents.join(",\n  ")}\n]);`,
-    );
+  if (agents.length > 0 || flows.length > 0) {
+    const agentsBody = agents.length > 0 ? `\n  ${agents.join(",\n  ")}\n` : "";
+    sections.push(`const sam = createRuntime([${agentsBody}]);`);
   }
 
   if (flows.length > 0) {
