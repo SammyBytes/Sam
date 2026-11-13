@@ -5,6 +5,7 @@ import { z } from "zod";
 import { MockStrategy } from "../strategies/agent/mockStrategy";
 import type { IAgentStrategy } from "../strategies/agent/agentStrategy";
 import { agentExecute } from "./processExecutor";
+import { OpenCodeStrategy } from "../strategies/agent/opencodeStrategy";
 
 export type Runtime = {
   use: <TSchema>(
@@ -20,8 +21,8 @@ export type Runtime = {
 
 const strategyRegistry = new Map<string, IAgentStrategy>([
   ["mock", new MockStrategy()],
+  ["opencode", new OpenCodeStrategy()],
   // ["claude_code", new ClaudeCodeStrategy()],
-  // ["opencode", new OpenCodeStrategy()],
 ]);
 
 async function executeRunner(
