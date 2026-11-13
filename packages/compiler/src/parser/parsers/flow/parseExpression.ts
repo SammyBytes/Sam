@@ -67,20 +67,46 @@ function parseUnary(context: IParserContext): ExpressionNode {
 function parseMember(context: IParserContext): ExpressionNode {
   let expr = parsePrimary(context);
 
-  while (context.peek().type === "DOT") {
-    context.advance(); // consume el '.'
-    const propToken = context.consume(
-      "IDENTIFIER",
-      "Expected property name after '.'",
-    );
-    expr = {
-      type: "MemberExpression",
-      object: expr,
-      property: propToken.value,
-    };
+  while (context.peek().type === "DOT" || context.peek().type === "LPAREN") {
+    if (context.peek().type === "DOT") {
+      context.advance(); // consume '.'
+      const propToken = context.consume(
+        "IDENTIFIER",
+        "Expected property name after '.'",
+      );
+      expr = {
+        type: "MemberExpression",
+        object: expr,
+        property: propToken.value,
+      };
+    } else if (context.peek().type === "LPAREN") {
+      expr = parseCall(context, expr);
+    }
   }
 
   return expr;
+}
+
+function parseCall(
+  context: IParserContext,
+  callee: ExpressionNode,
+): ExpressionNode {
+  context.consume("LPAREN", "Expected '(' after function name");
+  const args: ExpressionNode[] = [];
+
+  if (context.peek().type !== "RPAREN") {
+    do {
+      args.push(parseExpression(context));
+    } while (context.peek().type === "COMMA" && context.advance());
+  }
+
+  context.consume("RPAREN", "Expected ')' after arguments");
+
+  return {
+    type: "CallExpression",
+    callee,
+    arguments: args,
+  };
 }
 
 /**
