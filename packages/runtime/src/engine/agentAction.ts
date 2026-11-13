@@ -13,6 +13,10 @@ export type Runtime = {
     inputPrompt: string,
     schema: z.ZodType<TSchema>,
   ) => Promise<Result<TSchema, AgentError>>;
+  useSafe: (
+    agentName: string,
+    inputPrompt: string,
+  ) => Promise<Result<string, AgentError>>;
 };
 
 const strategyRegistry = new Map<string, IAgentStrategy>([
@@ -104,6 +108,22 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
         });
       }
       return ok(parseResult.data);
+    },
+
+    async useSafe(
+      agentName: string,
+      inputPrompt: string,
+    ): Promise<Result<string, AgentError>> {
+      const agent = agentMap.get(agentName);
+      if (!agent) {
+        return err({
+          code: "AGENT_NOT_FOUND",
+          agentName,
+          message: `Agent ${agentName} not found.`,
+        });
+      }
+
+      return executeRunner(agent, inputPrompt);
     },
   };
 }
