@@ -17,4 +17,7 @@ const main = defineCommand({
   },
 });
 
-runMain(main);
+// Top-level await keeps the process alive until the command settles. Without
+// it, Bun on Windows can exit 0 mid-await while a `Bun.file()` read is pending
+// (oven-sh/bun#39787), silently skipping the command's output and exit code.
+await runMain(main);

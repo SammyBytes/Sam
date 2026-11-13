@@ -24,6 +24,15 @@ interface RunResult {
   ephemeralFiles: string[];
 }
 
+/** Renders the full result so assertion failures stay debuggable in CI. */
+function describeRun(result: RunResult): string {
+  return `exit=${result.exitCode} stdout=${JSON.stringify(
+    result.stdout,
+  )} stderr=${JSON.stringify(result.stderr)} ephemeral=${JSON.stringify(
+    result.ephemeralFiles,
+  )}`;
+}
+
 /**
  * Executes the real CLI in a subprocess with an isolated TMPDIR, so the
  * ephemeral `sam-run-*.ts` files can be asserted without touching the host
@@ -130,11 +139,12 @@ flow main() {
 `;
 
     const result = await runSam(source);
+    const context = describeRun(result);
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout.trim()).toBe("mock_message");
-    expect(result.stderr).toBe("");
-    expect(result.ephemeralFiles).toEqual([]);
+    expect(result.exitCode, context).toBe(0);
+    expect(result.stdout.trim(), context).toBe("mock_message");
+    expect(result.stderr, context).toBe("");
+    expect(result.ephemeralFiles, context).toEqual([]);
   });
 
   test("returns exitCode 1 when a flow resolves to a failed Result", async () => {
@@ -151,14 +161,15 @@ flow main() {
 `;
 
     const result = await runSam(source);
+    const context = describeRun(result);
 
-    expect(result.exitCode).toBe(1);
-    expect(result.stdout).toBe("");
-    expect(JSON.parse(result.stderr)).toMatchObject({
+    expect(result.exitCode, context).toBe(1);
+    expect(result.stdout, context).toBe("");
+    expect(JSON.parse(result.stderr), context).toMatchObject({
       code: "EXECUTION_ERROR",
       agentName: "BrokenReviewer",
     });
-    expect(result.ephemeralFiles).toEqual([]);
+    expect(result.ephemeralFiles, context).toEqual([]);
   });
 
   test("removes ephemeral sam-run files after a successful execution", async () => {
@@ -169,10 +180,11 @@ flow main() {
 `;
 
     const result = await runSam(source);
+    const context = describeRun(result);
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout.trim()).toBe("done");
-    expect(result.ephemeralFiles).toEqual([]);
+    expect(result.exitCode, context).toBe(0);
+    expect(result.stdout.trim(), context).toBe("done");
+    expect(result.ephemeralFiles, context).toEqual([]);
   });
 
   test("reads a single string argument from stdin when no flow args are given", async () => {
@@ -183,9 +195,10 @@ flow main(input: string) {
 `;
 
     const result = await runSam(source, { stdinText: "piped input\n" });
+    const context = describeRun(result);
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout.trim()).toBe("piped input");
-    expect(result.ephemeralFiles).toEqual([]);
+    expect(result.exitCode, context).toBe(0);
+    expect(result.stdout.trim(), context).toBe("piped input");
+    expect(result.ephemeralFiles, context).toEqual([]);
   });
 });
