@@ -19,9 +19,8 @@ agent SecurityAuditor {
 agent ReleaseSummarizer {
   runner: opencode,
   workspace: env("RELEASE_WORKSPACE"),
-  system_prompt_file: "./prompts/release.md",
-  max_tokens: 2048,
-  enabled: true
+  system_prompt: "Summarize the release changes and return a ReleaseDecision JSON.",
+  timeout: 60
 }
 
 private flow EvaluateSeverity(findings: number, maxAllowed: number) {
@@ -55,6 +54,11 @@ flow RunReleaseGate(targetBranch: string, skipAudit: boolean) {
 
   let isRisky = audit.value.has_vulnerabilities
   if (isRisky) {
+    let severity = EvaluateSeverity(audit.value.findings_count, 5)
+    if (severity == "critical") {
+      return "blocked_critical"
+    }
+
     if (audit.value.risk_level == "critical") {
       return "blocked_critical"
     } else {
