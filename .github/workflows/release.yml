@@ -82,6 +82,12 @@ jobs:
         shell: bash
 
     steps:
+      # `gh release create`/`upload` resolve the repository from the git
+      # remote, so the publish job needs a checkout even though it only
+      # handles artifacts.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download platform artifacts
         uses: actions/download-artifact@v4
         with:
@@ -94,8 +100,8 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           ls -lh release
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" release/* --clobber
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$TAG" release/* --generate-notes --title "$TAG"
+            gh release create "$TAG" release/* --generate-notes --title "$TAG" --repo "$GITHUB_REPOSITORY"
           fi
