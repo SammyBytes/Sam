@@ -124,7 +124,7 @@ function generateExpression(
       const isFlowCall =
         expression.callee.type === "Identifier" &&
         flowNames.has(expression.callee.name);
-      return `${isFlowCall ? "await " : ""}${callee}(${args})`;
+      return isFlowCall ? `(await ${callee}(${args}))` : `${callee}(${args})`;
     }
     default:
       throw new Error(`Unsupported expression type: ${expression}`);
