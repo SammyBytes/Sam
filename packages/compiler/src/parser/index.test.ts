@@ -339,3 +339,58 @@ test("should throw SyntaxError on incomplete binary or member expressions", () =
   expect(() => new Parser(tokenize(trailingDot)).parse()).toThrow();
   expect(() => new Parser(tokenize(missingRightSide)).parse()).toThrow();
 });
+
+test("should parse safe and unsafe UseExpression inside flow body", () => {
+  const code = `
+    flow RunAudit(target: string) {
+      let safeRes = use SecurityAuditor<AuditReport>(target)
+      let rawRes = use unsafe QuickSummarizer("summarize this")
+      return safeRes.value
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  const flow = ast.body[0];
+  expect(flow.type).toBe("FlowDeclaration");
+
+  if (flow.type === "FlowDeclaration") {
+    expect(flow.body).toHaveLength(3);
+
+    // 1. Safe use: use SecurityAuditor<AuditReport>(target)
+    expect(flow.body[0]).toEqual({
+      type: "LetStatement",
+      name: "safeRes",
+      value: {
+        type: "UseExpression",
+        variant: "safe",
+        agentName: "SecurityAuditor",
+        schema: "AuditReport",
+        inputPrompt: { type: "Identifier", name: "target" },
+      },
+    });
+
+    // 2. Unsafe use: use unsafe QuickSummarizer("summarize this")
+    expect(flow.body[1]).toEqual({
+      type: "LetStatement",
+      name: "rawRes",
+      value: {
+        type: "UseExpression",
+        variant: "unsafe",
+        agentName: "QuickSummarizer",
+        schema: undefined,
+        inputPrompt: { type: "Literal", value: "summarize this" },
+      },
+    });
+  }
+});
+
+test("should throw SyntaxError on invalid UseExpression schema combinations", () => {
+  const safeWithoutSchema = `flow Bad() { let x = use Auditor("hi") }`;
+  const unsafeWithSchema = `flow Bad() { let x = use unsafe Auditor<Report>("hi") }`;
+
+  expect(() => new Parser(tokenize(safeWithoutSchema)).parse()).toThrow();
+  expect(() => new Parser(tokenize(unsafeWithSchema)).parse()).toThrow();
+});
