@@ -13,9 +13,6 @@
     "./codegen": "./src/codegen/index.ts",
     "./cli": "./src/cli.ts"
   },
-  "bin": {
-    "sam": "./src/cli.ts"
-  },
   "files": [
     "src",
     "README.md"
