@@ -6,6 +6,7 @@ import { generateSchema } from "./generators/generateSchema";
 export interface CodegenOptions {
   zodImportPath?: string;
   runtimeImportPath?: string;
+  useGlobalRuntime?: boolean;
 }
 
 export const generateCode = (
@@ -55,15 +56,31 @@ export const generateCode = (
     return "";
   }
 
-  const zodSpecifier = options?.zodImportPath ?? "zod";
-  const runtimeSpecifier = options?.runtimeImportPath ?? "@sam-lang/runtime";
-
   const imports: string[] = [];
-  if (schemas.length > 0) {
-    imports.push(`import { z } from ${JSON.stringify(zodSpecifier)};`);
-  }
-  if (agents.length > 0 || flows.length > 0) {
-    imports.push(`import { createRuntime } from ${JSON.stringify(runtimeSpecifier)};`);
+
+  if (options?.useGlobalRuntime) {
+    if (schemas.length > 0) {
+      imports.push(
+        `const { z } = globalThis as unknown as { z: typeof import("zod").z };`
+      );
+    }
+    if (agents.length > 0 || flows.length > 0) {
+      imports.push(
+        `const { createRuntime } = globalThis as unknown as { createRuntime: typeof import("@sam-lang/runtime").createRuntime };`
+      );
+    }
+  } else {
+    const zodSpecifier = options?.zodImportPath ?? "zod";
+    const runtimeSpecifier = options?.runtimeImportPath ?? "@sam-lang/runtime";
+
+    if (schemas.length > 0) {
+      imports.push(`import { z } from ${JSON.stringify(zodSpecifier)};`);
+    }
+    if (agents.length > 0 || flows.length > 0) {
+      imports.push(
+        `import { createRuntime } from ${JSON.stringify(runtimeSpecifier)};`
+      );
+    }
   }
 
   const sections: string[] = [];
@@ -77,7 +94,8 @@ export const generateCode = (
   }
 
   if (agents.length > 0 || flows.length > 0) {
-    const agentsBody = agents.length > 0 ? `\n  ${agents.join(",\n  ")}\n` : "";
+    const agentsBody =
+      agents.length > 0 ? `\n  ${agents.join(",\n  ")}\n` : "";
     sections.push(`const sam = createRuntime([${agentsBody}]);`);
   }
 

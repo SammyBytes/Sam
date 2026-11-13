@@ -7,11 +7,11 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "bun test",
+    "sam": "bun run packages/cli/src/cli.ts",
+    "ast": "bun run packages/cli/src/cli.ts ast",
     "build": "bun run --filter '*' build",
-    "sam": "bun run packages/compiler/src/cli.ts",
-    "ast": "bun run packages/compiler/src/cli.ts --ast",
-    "compile:example": "bun run packages/compiler/src/cli.ts examples/basic_schema.sb -o dist/output.ts"
+    "build:bin": "bun run --filter @sam-lang/cli build:bin",
+    "test": "bun test"
   },
   "devDependencies": {
     "@sam-lang/compiler": "workspace:*",

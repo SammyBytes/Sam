@@ -3,6 +3,7 @@ import { unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { z } from "zod";
 import {
   coerceCliArgs,
   generateCode,
@@ -10,6 +11,7 @@ import {
   resolveEntryFlow,
   tokenize,
 } from "@sam-lang/compiler";
+import { createRuntime } from "@sam-lang/runtime";
 
 function extractFlowArgs(rawArgs: string[], fileArg: string): string[] {
   const separatorIndex = rawArgs.indexOf("--");
@@ -23,7 +25,7 @@ function extractFlowArgs(rawArgs: string[], fileArg: string): string[] {
   for (let i = 0; i < rawArgs.length; i++) {
     const token = rawArgs[i]!;
     if (token === "--flow" || token === "-f") {
-      i++; // skip the next token, which is the flow name
+      i++;
       continue;
     }
     if (token.startsWith("--flow=") || token.startsWith("-f=")) {
@@ -77,13 +79,13 @@ export default defineCommand({
     const typedArgs = coerceCliArgs(entryFlow, flowArgs, stdinText);
 
     const tsCode = generateCode(ast, {
-      zodImportPath: Bun.resolveSync("zod", import.meta.dir),
-      runtimeImportPath: Bun.resolveSync("@sam-lang/runtime", import.meta.dir),
+      useGlobalRuntime: true,
     });
-    
+
     const tempFile = join(tmpdir(), `sam-run-${crypto.randomUUID()}.ts`);
 
     try {
+      Object.assign(globalThis, { z, createRuntime });
       await Bun.write(tempFile, tsCode);
       const mod = await import(pathToFileURL(tempFile).href);
       const result = await mod[entryFlow.name](...typedArgs);
@@ -95,7 +97,7 @@ export default defineCommand({
         result.ok === false
       ) {
         console.error(
-          JSON.stringify((result as { error: unknown }).error, null, 2),
+          JSON.stringify((result as { error: unknown }).error, null, 2)
         );
         process.exit(1);
       }
