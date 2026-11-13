@@ -12,6 +12,7 @@
     "./parser": "./src/parser/index.ts",
     "./codegen": "./src/codegen/index.ts"
   },
+  
   "private": true,
   "files": [
     "src",
