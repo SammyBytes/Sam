@@ -15,7 +15,9 @@ test("should generate TypeScript with Zod schemas from a .sb program", () => {
   const output = generateCode(ast);
 
   expect(output).toContain('import { z } from "zod";');
-  expect(output).not.toContain('import { createRuntime } from "@sam-lang/runtime";');
+  expect(output).not.toContain(
+    'import { createRuntime } from "@sam-lang/runtime";',
+  );
   expect(output).toContain("export const SecurityAuditSchema = z.object({");
   expect(output).toContain("has_vulnerabilities: z.boolean(),");
   expect(output).toContain("risk_level: z.string(),");
@@ -39,7 +41,9 @@ test("should generate runtime agent config for an agent declaration", () => {
   const output = generateCode(ast);
 
   expect(output).not.toContain('import { z } from "zod";');
-  expect(output).toContain('import { createRuntime } from "@sam-lang/runtime";');
+  expect(output).toContain(
+    'import { createRuntime } from "@sam-lang/runtime";',
+  );
   expect(output).toContain("const sam = createRuntime([");
   expect(output).toContain(
     '{ name: "QuickAuditor", runner: "claude_code", workspace: "./src", timeout: 30000 }',
@@ -65,7 +69,9 @@ test("should generate combined TypeScript for schemas and agents", () => {
   const output = generateCode(ast);
 
   expect(output).toContain('import { z } from "zod";');
-  expect(output).toContain('import { createRuntime } from "@sam-lang/runtime";');
+  expect(output).toContain(
+    'import { createRuntime } from "@sam-lang/runtime";',
+  );
   expect(output).toContain("export const ReportSchema = z.object({");
   expect(output).toContain("const sam = createRuntime([");
   expect(output).toContain(
@@ -110,24 +116,36 @@ test("should generate async function for a complete program with schema, agent a
   const ast = parser.parse();
   const output = generateCode(ast);
 
-  // Imports y estructura base
+  // Imports and base structure
   expect(output).toContain('import { z } from "zod";');
-  expect(output).toContain('import { createRuntime } from "@sam-lang/runtime";');
+  expect(output).toContain(
+    'import { createRuntime } from "@sam-lang/runtime";',
+  );
   expect(output).toContain("export const AuditReportSchema = z.object({");
   expect(output).toContain("const sam = createRuntime([");
 
-  // Firma y cuerpo del flujo
-  expect(output).toContain("export async function RunSecurityPipeline(target: string) {");
-  expect(output).toContain('  const audit = await sam.use("SecurityAuditor", target, AuditReportSchema);');
+  // Flow function signature and body
+  expect(output).toContain(
+    "export async function RunSecurityPipeline(target: string) {",
+  );
+  expect(output).toContain(
+    '  const audit = await sam.use("SecurityAuditor", target, AuditReportSchema);',
+  );
   expect(output).toContain("  if (!audit.ok) {");
-  expect(output).toContain('    const fallback = await sam.useUnsafe("QuickSummarizer", "fallback summary");');
+  expect(output).toContain(
+    '    const fallback = await sam.useUnsafe("QuickSummarizer", "fallback summary");',
+  );
   expect(output).toContain("    return fallback;");
   expect(output).toContain("  }");
   expect(output).toContain("  return audit.value;");
 
-  // Orden estricto de dependencias en el archivo generado
-  expect(output.indexOf("AuditReportSchema")).toBeLessThan(output.indexOf("const sam ="));
-  expect(output.indexOf("const sam =")).toBeLessThan(output.indexOf("export async function RunSecurityPipeline"));
+  // Order: Schema -> Runtime Initialization -> Flow Function
+  expect(output.indexOf("AuditReportSchema")).toBeLessThan(
+    output.indexOf("const sam ="),
+  );
+  expect(output.indexOf("const sam =")).toBeLessThan(
+    output.indexOf("export async function RunSecurityPipeline"),
+  );
 });
 
 test("should omit export keyword for private flows", () => {
@@ -164,10 +182,85 @@ test("should normalize equality operators and generate clean createRuntime([]) w
   const ast = parser.parse();
   const output = generateCode(ast);
 
-  expect(output).toContain('import { createRuntime } from "@sam-lang/runtime";');
+  expect(output).toContain(
+    'import { createRuntime } from "@sam-lang/runtime";',
+  );
   expect(output).toContain("const sam = createRuntime([]);");
   expect(output).not.toContain('import { z } from "zod";');
   expect(output).toContain('if (status === "ok") {');
   expect(output).toContain("} else {");
   expect(output).toContain("  if (attempt !== 0) {");
+});
+
+test("should support inter-flow calls, private flows, forward references, and chained property access", () => {
+  const code = `
+    flow RunReleaseGate(findings: number, target: string) {
+      let severity = EvaluateSeverity(findings, 5)
+      if (severity == "critical") {
+        return "blocked"
+      }
+
+      if (FetchApprovalStatus(target).approved) {
+        return "released"
+      }
+
+      return "pending"
+    }
+
+    private flow EvaluateSeverity(findings: number, maxAllowed: number) {
+      if (findings > maxAllowed) {
+        return "critical"
+      }
+      return "clean"
+    }
+
+    private flow FetchApprovalStatus(target: string) {
+      return target
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+  const output = generateCode(ast);
+
+  expect(output).toContain(
+    "export async function RunReleaseGate(findings: number, target: string) {",
+  );
+  expect(output).toContain(
+    "async function EvaluateSeverity(findings: number, maxAllowed: number) {",
+  );
+  expect(output).not.toContain("export async function EvaluateSeverity");
+  expect(output).toContain(
+    "async function FetchApprovalStatus(target: string) {",
+  );
+  expect(output).not.toContain("export async function FetchApprovalStatus");
+
+  // Forward reference: RunReleaseGate call to flows declared below and injects await
+  expect(output).toContain(
+    "const severity = (await EvaluateSeverity(findings, 5));",
+  );
+
+  // About the regex: it matches both `(await FetchApprovalStatus(target)).approved` and `await FetchApprovalStatus(target).approved`
+  expect(output).toMatch(
+    /if \(\(await FetchApprovalStatus\(target\)\)\.approved|if \(await FetchApprovalStatus\(target\)\.approved/,
+  );
+});
+
+test("should throw an error on duplicate flow declarations", () => {
+  const code = `
+    flow ProcessData(x: string) {
+      return x
+    }
+
+    private flow ProcessData(y: string) {
+      return y
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  expect(() => generateCode(ast)).toThrow("Duplicate flow name: ProcessData");
 });
