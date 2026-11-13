@@ -1,4 +1,3 @@
-import { JSON5 } from "bun";
 import type { AgentError } from "../errors";
 import { err, ok, type Result } from "../result";
 import type { AgentConfig } from "./agentConfig";
@@ -50,14 +49,6 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
   const agentMap = new Map<string, AgentConfig>();
   for (const agent of agents) {
     agentMap.set(agent.name, agent);
-  }
-
-  if (agentMap.size === 0) {
-    return err({
-      code: "AGENT_NOT_FOUND",
-      agentName: "",
-      message: "No agents are configured.",
-    }) as unknown as Runtime;
   }
 
   return {
