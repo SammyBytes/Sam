@@ -99,7 +99,8 @@ export default defineCommand({
         console.error(
           JSON.stringify((result as { error: unknown }).error, null, 2)
         );
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
 
       if (typeof result === "string") {
