@@ -13,7 +13,7 @@ export type Runtime = {
     inputPrompt: string,
     schema: z.ZodType<TSchema>,
   ) => Promise<Result<TSchema, AgentError>>;
-  useSafe: (
+  useUnsafe: (
     agentName: string,
     inputPrompt: string,
   ) => Promise<Result<string, AgentError>>;
@@ -110,7 +110,7 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
       return ok(parseResult.data);
     },
 
-    async useSafe(
+    async useUnsafe(
       agentName: string,
       inputPrompt: string,
     ): Promise<Result<string, AgentError>> {
