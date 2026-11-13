@@ -63,7 +63,7 @@ Direct execution emits TypeScript to `os.tmpdir()` as `sam-run-<uuid>.ts`, impor
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) `>= 1.1` when building from source. Prebuilt binaries are self-contained.
+- [Bun](https://bun.sh/) `>= 1.4.2` when building from source. Prebuilt binaries are self-contained.
 - The `opencode` CLI on your `PATH` when using the `opencode` runner. The `mock` runner requires no external binary.
 
 ### Install a prebuilt binary (no clone)

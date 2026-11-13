@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { closeSync, openSync } from "node:fs";
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -29,10 +36,20 @@ async function runSam(
   const workDir = await mkdtemp(join(tmpdir(), "sam-run-work-"));
   const runtimeTmpDir = await mkdtemp(join(tmpdir(), "sam-run-tmp-"));
   const sourceFile = join(workDir, "program.sb");
+  const stdoutFile = join(workDir, "stdout.log");
+  const stderrFile = join(workDir, "stderr.log");
 
   await writeFile(sourceFile, source, "utf8");
 
+  let stdoutFd: number | undefined;
+  let stderrFd: number | undefined;
+
   try {
+    // Redirect to files instead of pipes: some Bun versions return empty
+    // piped output from subprocesses spawned inside `bun test`.
+    stdoutFd = openSync(stdoutFile, "w");
+    stderrFd = openSync(stderrFile, "w");
+
     const proc = Bun.spawn({
       cmd: [process.execPath, CLI, "run", sourceFile],
       cwd: ROOT,
@@ -44,8 +61,8 @@ async function runSam(
         TMP: runtimeTmpDir,
       },
       stdin: options.stdinText === undefined ? "ignore" : "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
+      stdout: stdoutFd,
+      stderr: stderrFd,
     });
 
     if (options.stdinText !== undefined) {
@@ -53,10 +70,16 @@ async function runSam(
       proc.stdin.end();
     }
 
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
+    const exitCode = await proc.exited;
+
+    closeSync(stdoutFd);
+    closeSync(stderrFd);
+    stdoutFd = undefined;
+    stderrFd = undefined;
+
+    const [stdout, stderr] = await Promise.all([
+      readFile(stdoutFile, "utf8"),
+      readFile(stderrFile, "utf8"),
     ]);
 
     const ephemeralFiles = (await readdir(runtimeTmpDir)).filter((name) =>
@@ -65,6 +88,17 @@ async function runSam(
 
     return { stdout, stderr, exitCode, ephemeralFiles };
   } finally {
+    if (stdoutFd !== undefined) {
+      try {
+        closeSync(stdoutFd);
+      } catch {}
+    }
+    if (stderrFd !== undefined) {
+      try {
+        closeSync(stderrFd);
+      } catch {}
+    }
+
     await rm(workDir, { recursive: true, force: true });
     await rm(runtimeTmpDir, { recursive: true, force: true });
   }
@@ -107,7 +141,7 @@ flow main() {
     const source = `
 agent BrokenReviewer {
   runner: mock,
-  workspace: "./sam-missing-workspace"
+  workspace: "./package.json"
 }
 
 flow main() {
