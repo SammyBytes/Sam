@@ -4,6 +4,13 @@ import type {
   StatementNode,
 } from "../../../parser/ast";
 
+const MAPPING_BINARY_OPERATOR: Record<string, string> = {
+  "==": "===",
+  "!=": "!==",
+  "<": "<",
+  ">": ">",
+};
+
 export function generateFlow(flowNode: FlowNode): string {
   const functionName = flowNode.name;
   const functionIsPrivate = flowNode.isPrivate;
@@ -69,5 +76,40 @@ function generateStatement(
 }
 
 function generateExpression(expression: ExpressionNode): string {
-  return "/* expr */";
+  switch (expression.type) {
+    case "Literal":
+      return JSON.stringify(expression.value);
+    case "Identifier":
+      return expression.name;
+    case "MemberExpression":
+      const object = generateExpression(expression.object);
+      return `${object}.${expression.property}`;
+    case "BinaryExpression":
+      const left = generateExpression(expression.left);
+      const right = generateExpression(expression.right);
+      const operator =
+        MAPPING_BINARY_OPERATOR[expression.operator] || expression.operator;
+      return `${left} ${operator} ${right}`;
+    case "UnaryExpression":
+      const argument = generateExpression(expression.argument);
+      return `${expression.operator}${argument}`;
+    case "UseExpression":
+      const inputPrompt = generateExpression(expression.inputPrompt);
+      const name = JSON.stringify(expression.agentName);
+      const isSafe = expression.variant === "safe";
+      if (!isSafe) {
+        return `await sam.useUnsafe(${name}, ${inputPrompt})`;
+      }
+      const schema = `${expression.schema}Schema`;
+
+      return `await sam.use(${name}, ${inputPrompt}, ${schema})`;
+    case "CallExpression":
+      const callee = generateExpression(expression.callee);
+      const args = expression.arguments
+        .map((arg) => generateExpression(arg))
+        .join(", ");
+      return `${callee}(${args})`;
+    default:
+      throw new Error(`Unsupported expression type: ${expression}`);
+  }
 }
