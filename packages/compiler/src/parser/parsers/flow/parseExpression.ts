@@ -116,6 +116,52 @@ function parsePrimary(context: IParserContext): ExpressionNode {
       };
     }
 
+    case "USE": {
+      context.advance(); // consume 'use'
+
+      let unsafe = false;
+      if (context.peek().type === "UNSAFE") {
+        context.advance(); // consume 'unsafe'
+        unsafe = true;
+      }
+
+      const agentNameToken = context.consume(
+        "IDENTIFIER",
+        "Expected agent name after 'use'",
+      );
+      const agentName = agentNameToken.value;
+
+      let schema: string | undefined = undefined;
+      if (!unsafe) {
+        context.consume(
+          "LESS_THAN",
+          `Expected '<Schema>' after agent name '${agentName}'`,
+        );
+        const schemaToken = context.consume(
+          "IDENTIFIER",
+          "Expected schema name after '<'",
+        );
+        schema = schemaToken.value;
+        context.consume("GREATER_THAN", "Expected '>' after schema name");
+      } else if (context.peek().type === "LESS_THAN") {
+        const ltToken = context.peek();
+        throw new Error(
+          `SyntaxError: Cannot specify a schema '<...>' when using 'unsafe' on agent '${agentName}' at line ${ltToken.line}, column ${ltToken.column}.`,
+        );
+      }
+
+      context.consume("LPAREN", "Expected '(' before input prompt");
+      const inputPrompt = parseExpression(context);
+      context.consume("RPAREN", "Expected ')' after input prompt");
+
+      return {
+        type: "UseExpression",
+        variant: unsafe ? "unsafe" : "safe",
+        agentName,
+        inputPrompt,
+        schema,
+      };
+    }
     case "IDENTIFIER": {
       context.advance();
       return {
