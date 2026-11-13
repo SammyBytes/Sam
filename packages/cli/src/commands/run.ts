@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { unlink } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -109,7 +109,13 @@ export default defineCommand({
         console.log(JSON.stringify(result, null, 2));
       }
     } finally {
-      await unlink(tempFile).catch(() => {});
+      // `recursive` enables maxRetries on Windows for transient lock errors.
+      await rm(tempFile, {
+        force: true,
+        recursive: true,
+        maxRetries: 5,
+        retryDelay: 100,
+      }).catch(() => {});
     }
   },
 });

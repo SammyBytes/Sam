@@ -22,6 +22,10 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
+          - windows-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout repository
@@ -45,13 +49,21 @@ jobs:
 
       - name: Verify binary CLI
         run: |
-          ./dist/sam --version
-          ./dist/sam --help
+          BIN="dist/sam"
+          if [ -f "dist/sam.exe" ]; then
+            BIN="dist/sam.exe"
+          fi
+          "$BIN" --version
+          "$BIN" --help
 
       - name: Smoke test binary portability
-        shell: bash
         run: |
-          cat > "$RUNNER_TEMP/sam-portable.sb" <<'SAM'
+          BIN="dist/sam"
+          if [ -f "dist/sam.exe" ]; then
+            BIN="dist/sam.exe"
+          fi
+
+          cat > sam-portable.sb <<'SAM'
           schema Ping {
             message: string
           }
@@ -70,6 +82,7 @@ jobs:
           }
           SAM
 
-          output="$(./dist/sam run "$RUNNER_TEMP/sam-portable.sb" </dev/null)"
+          output="$("$BIN" run sam-portable.sb </dev/null)"
+          rm -f sam-portable.sb
           echo "Binary output: $output"
           test "$output" = "mock_message"

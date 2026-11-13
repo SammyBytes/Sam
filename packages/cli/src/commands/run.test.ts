@@ -36,7 +36,13 @@ async function runSam(
     const proc = Bun.spawn({
       cmd: [process.execPath, CLI, "run", sourceFile],
       cwd: ROOT,
-      env: { ...process.env, TMPDIR: runtimeTmpDir },
+      env: {
+        ...process.env,
+        // `os.tmpdir()` honors TMPDIR on Unix and TEMP/TMP on Windows.
+        TMPDIR: runtimeTmpDir,
+        TEMP: runtimeTmpDir,
+        TMP: runtimeTmpDir,
+      },
       stdin: options.stdinText === undefined ? "ignore" : "pipe",
       stdout: "pipe",
       stderr: "pipe",

@@ -47,7 +47,7 @@ Private flows can be called by other flows in the same file, but never invoked d
 
 ### Standalone compiled binaries
 
-Build a single executable with zero runtime `node_modules`:
+Build a single executable for Linux, macOS, or Windows with zero runtime `node_modules`:
 
 ```bash
 bun build packages/cli/src/cli.ts --compile --outfile dist/sam
@@ -63,10 +63,87 @@ Direct execution emits TypeScript to `os.tmpdir()` as `sam-run-<uuid>.ts`, impor
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) `>= 1.1`
+- [Bun](https://bun.sh/) `>= 1.1` when building from source. Prebuilt binaries are self-contained.
 - The `opencode` CLI on your `PATH` when using the `opencode` runner. The `mock` runner requires no external binary.
 
-### Install from source
+### Install a prebuilt binary (no clone)
+
+Download the asset for your platform from the [Releases](https://github.com/SammyBytes/Sam/releases) page. Release assets are self-contained: they do **not** require Bun, Node.js, or `node_modules`.
+
+Asset names follow the runner OS and architecture, for example:
+
+| Platform | Asset |
+| :------- | :---- |
+| Linux x64 | `sam-linux-x64` |
+| Linux arm64 | `sam-linux-arm64` |
+| macOS Apple Silicon | `sam-darwin-arm64` |
+| macOS Intel | `sam-darwin-x64` |
+| Windows x64 | `sam-windows-x64.exe` |
+
+Replace the asset name below with the one you downloaded.
+
+#### Linux
+
+```bash
+chmod +x sam-linux-x64
+mkdir -p ~/.local/bin
+mv sam-linux-x64 ~/.local/bin/sam
+
+export PATH="$HOME/.local/bin:$PATH"
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+# For zsh, append the same line to ~/.zshrc instead.
+
+sam --version
+```
+
+To install system-wide instead:
+
+```bash
+sudo install -m 0755 sam-linux-x64 /usr/local/bin/sam
+```
+
+#### macOS
+
+```bash
+chmod +x sam-darwin-arm64
+xattr -d com.apple.quarantine sam-darwin-arm64 2>/dev/null || true
+
+mkdir -p ~/.local/bin
+mv sam-darwin-arm64 ~/.local/bin/sam
+
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+
+sam --version
+```
+
+Use `sam-darwin-x64` on Intel Macs. If macOS still blocks the binary, open **System Settings → Privacy & Security** and allow it explicitly.
+
+#### Windows
+
+Download `sam-windows-x64.exe`, then run PowerShell:
+
+```powershell
+Unblock-File .\sam-windows-x64.exe
+
+$binDir = Join-Path $env:USERPROFILE ".local\bin"
+New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+Move-Item .\sam-windows-x64.exe (Join-Path $binDir "sam.exe")
+
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($userPath -notlike "*$binDir*") {
+    [Environment]::SetEnvironmentVariable("Path", "$userPath;$binDir", "User")
+}
+$env:Path = "$env:Path;$binDir"
+
+sam --version
+```
+
+Open a new terminal after changing the user `PATH`. Windows resolves `sam.exe` automatically, so the command is simply `sam`.
+
+### Build from source
+
+Linux and macOS:
 
 ```bash
 git clone https://github.com/SammyBytes/Sam.git
@@ -81,7 +158,22 @@ sam --version
 # 0.4.0
 ```
 
-Ensure `~/.local/bin` is on your `PATH`.
+Add `~/.local/bin` to your `PATH` using the commands shown in the Linux or macOS section above.
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/SammyBytes/Sam.git
+cd Sam
+bun install
+bun run build:bin
+
+$binDir = Join-Path $env:USERPROFILE ".local\bin"
+New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+Copy-Item .\dist\sam.exe (Join-Path $binDir "sam.exe")
+```
+
+Add `%USERPROFILE%\.local\bin` to the user `PATH` as shown in the Windows section above.
 
 ### Write a program
 
@@ -279,7 +371,8 @@ The compiler is a bootstrap implementation in TypeScript. It will be retired in 
 ├── examples/         # Sample .sb programs
 ├── .github/
 │   └── workflows/
-│       └── ci.yml    # Linux/macOS tests, binary build, portability smoke test
+│       ├── ci.yml      # Linux/macOS/Windows tests and binary smoke tests
+│       └── release.yml # Tag-driven cross-platform binary releases
 ├── package.json      # Bun workspace root
 └── bun.lock
 ```
@@ -291,14 +384,16 @@ bun install
 
 bun test              # Unit and integration tests
 bun run build         # Build all workspace packages
-bun run build:bin     # Compile the standalone binary to dist/sam
+bun run build:bin     # Compile the standalone binary to dist/sam (or dist/sam.exe)
 ```
 
 The test suite covers the compiler frontend, code generation, entry resolution, CLI argument coercion, direct execution, failure exit codes, and ephemeral file cleanup.
 
+Pushing a `v*` tag triggers the release workflow, which builds Linux, macOS, and Windows binaries and attaches them to the GitHub Release.
+
 ## Roadmap
 
-- **v0.4.0 — Direct Execution** *(Done)*: `sam run` with positional arguments and stdin pipelines, smart entry point resolution, standalone compiled binaries, and guaranteed temporary-file cleanup.
+- **v0.4.0 — Direct Execution** *(Done)*: `sam run` with positional arguments and stdin pipelines, smart entry point resolution, standalone compiled binaries for Linux/macOS/Windows, tag-driven releases, and guaranteed temporary-file cleanup.
 - **v0.5.0 — Models & Integrations** *(Next)*: native model provider adapters, richer `model` configuration, webhook triggers, retry policies, and contract validation loops.
 - **v1.0.0 — Self-Hosting** *(Planned)*: a compiler written in Sam itself, retiring `@sam-lang/compiler` and removing the TypeScript bootstrap toolchain.
 
