@@ -1,10 +1,12 @@
 import type { ProgramNode } from "../parser/ast";
+import { generateFlow } from "./generators/flow/generateFlow";
 import { generateAgent } from "./generators/generateAgent";
 import { generateSchema } from "./generators/generateSchema";
 
 export const generateCode = (programNode: ProgramNode): string => {
   const schemas: string[] = [];
   const agents: string[] = [];
+  const flows: string[] = [];
 
   for (const node of programNode.body) {
     switch (node.type) {
@@ -20,13 +22,19 @@ export const generateCode = (programNode: ProgramNode): string => {
         break;
       }
 
+      case "FlowDeclaration": {
+        const flowCode = generateFlow(node);
+        flows.push(flowCode);
+        break;
+      }
+
       default:
         // This case should never happen if the parser is working correctly, but we include it for completeness.
         break;
     }
   }
 
-  if (schemas.length === 0 && agents.length === 0) {
+  if (schemas.length === 0 && agents.length === 0 && flows.length === 0) {
     return "";
   }
 
@@ -51,6 +59,10 @@ export const generateCode = (programNode: ProgramNode): string => {
     sections.push(
       `const sam = createRuntime([\n  ${agents.join(",\n  ")}\n]);`,
     );
+  }
+
+  if (flows.length > 0) {
+    sections.push(flows.join("\n\n"));
   }
 
   return sections.join("\n\n");
