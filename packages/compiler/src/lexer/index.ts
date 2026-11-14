@@ -1,6 +1,7 @@
 export type TokenType =
   | "SCHEMA"
   | "AGENT"
+  | "PROVIDER"
   | "FLOW" // flow name();
   | "PRIVATE" // private(...)
   | "PARALLEL" // parallel(...)
@@ -47,6 +48,7 @@ export interface Token {
 const KEYWORDS: Record<string, TokenType> = {
   schema: "SCHEMA",
   agent: "AGENT",
+  provider: "PROVIDER",
   env: "ENV",
   true: "BOOLEAN",
   false: "BOOLEAN",
