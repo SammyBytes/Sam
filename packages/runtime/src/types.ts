@@ -14,7 +14,7 @@ export interface AgentRunnerConfig {
 }
 
 export const ProviderProtocol = {
-  OPENAI: "openai",
+  OPENAI: "openai-compatible",
   ANTHROPIC: "anthropic",
 } as const;
 

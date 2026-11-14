@@ -31,7 +31,7 @@ export interface SchemaNode {
 // ------------------------------------------------------------------
 
 export type AgentPropertyType =
-  | { type: "Identifier"; value: AgentRunnerKind } // e.g., "opencode", "mock"
+  | { type: "Identifier"; value: AgentRunnerKind |  (string & {}) } // e.g., "opencode", "mock", "openai-compatible", "anthropic"
   | { type: "StringLiteral"; value: string } // e.g., "./src"
   | { type: "NumberLiteral"; value: number } // e.g., 42
   | { type: "BooleanLiteral"; value: boolean } // e.g., true
@@ -115,8 +115,8 @@ export type UseExpressionNode = {
 //------------------------------------------------------------------
 
 export type ProviderTypes =
-  | { type: "Identifier"; value: ProviderProtocolKind } // e.g., "openai", "anthropic"
-  | Omit<CommonTypes, "Identifier">; // e.g., string, number, boolean, env
+  | { type: "Identifier"; value: ProviderProtocolKind } // e.g., "openai-compatible", "anthropic"
+  | Exclude<CommonTypes, { type: "Identifier" }>; // e.g., string, number, boolean, env
 
 export interface ProviderPropertyNode {
   type: "ProviderProperty";
