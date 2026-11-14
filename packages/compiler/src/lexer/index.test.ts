@@ -134,3 +134,36 @@ test("Should tokenize a plain template literal without interpolation as STRING",
   expect(tokens[0]!.value).toBe("Plain multiline prompt");
   expect(tokens[1]!.type).toBe("EOF");
 });
+
+test("Should tokenize a provider definition with env()", () => {
+  const code = `provider Groq { protocol: "openai-compatible", base_url: "https://api.groq.com/openai/v1", api_key: env("GROQ_API_KEY") }`;
+  const tokens = tokenize(code);
+
+  expect(tokens.length).toBeGreaterThanOrEqual(16);
+
+  const providerToken = tokens[0]!;
+  const identifierToken = tokens[1]!;
+  const braceToken = tokens[2]!;
+
+  // Expect the first token to be the "provider" keyword
+  expect(providerToken.type).toBe("PROVIDER");
+  expect(providerToken.value).toBe("provider");
+
+  // Expect the second token to be the provider name
+  expect(identifierToken.type).toBe("IDENTIFIER");
+  expect(identifierToken.value).toBe("Groq");
+
+  // Expect the opening brace
+  expect(braceToken.type).toBe("LBRACE");
+
+  // Expect the env() call sequence near the end of the declaration
+  const envIndex = tokens.findIndex((t) => t.type === "ENV");
+  expect(envIndex).toBeGreaterThan(-1);
+
+  expect(tokens[envIndex]!.type).toBe("ENV");
+  expect(tokens[envIndex]!.value).toBe("env");
+  expect(tokens[envIndex + 1]!.type).toBe("LPAREN");
+  expect(tokens[envIndex + 2]!.type).toBe("STRING");
+  expect(tokens[envIndex + 2]!.value).toBe("GROQ_API_KEY");
+  expect(tokens[envIndex + 3]!.type).toBe("RPAREN");
+});
