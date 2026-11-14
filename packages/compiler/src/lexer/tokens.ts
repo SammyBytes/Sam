@@ -30,6 +30,9 @@ export type TokenType =
   | "GREATER_THAN"
   | "LESS_THAN"
   | "EQUALS_EQUALS"
+  | "TEMPLATE_HEAD" // `Hi ${
+  | "TEMPLATE_MIDDLE" // , had ${
+  | "TEMPLATE_TAIL" //  alerts`
   | "EOF";
 
 export interface Token {
@@ -73,6 +76,7 @@ export const SINGLE_CHAR_TOKENS: Record<string, TokenType> = {
   "}": "RBRACE",
   "(": "LPAREN",
   ")": "RPAREN",
+
   ":": "COLON",
   ";": "SEMICOLON",
   ".": "DOT",
