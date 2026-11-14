@@ -1,5 +1,11 @@
 import { Scanner } from "./scanner";
-import { KEYWORDS, SINGLE_CHAR_TOKENS, TWO_CHAR_TOKENS, type Token, type TokenType } from "./tokens";
+import {
+  KEYWORDS,
+  SINGLE_CHAR_TOKENS,
+  TWO_CHAR_TOKENS,
+  type Token,
+  type TokenType,
+} from "./tokens";
 
 export function tokenize(input: string): Token[] {
   const scanner = new Scanner(input);
@@ -42,6 +48,11 @@ export function tokenize(input: string): Token[] {
         line,
         column,
       });
+      continue;
+    }
+
+    if (char === "`") {
+      tokens.push(...scanTemplateLiteral(scanner, line, column));
       continue;
     }
 
@@ -109,6 +120,106 @@ function scanString(scanner: Scanner, line: number, column: number): Token {
     line,
     column,
   };
+}
+
+function scanTemplateLiteral(
+  scanner: Scanner,
+  startLine: number,
+  startColumn: number,
+): Token[] {
+  const tokens: Token[] = [];
+  let chunk = "";
+  let chunkLine = startLine;
+  let chunkColumn = startColumn;
+  let hasInterpolation = false;
+
+  scanner.advance(); // Consume the opening backtick
+
+  while (!scanner.isAtEnd) {
+    const char = scanner.peek();
+
+    if (char === "`") {
+      scanner.advance(); // Consume the closing backtick
+      tokens.push({
+        type: hasInterpolation ? "TEMPLATE_TAIL" : "STRING",
+        value: chunk,
+        line: chunkLine,
+        column: chunkColumn,
+      });
+      return tokens;
+    }
+
+    if (char === "$" && scanner.peek(1) === "{") {
+      tokens.push({
+        type: hasInterpolation ? "TEMPLATE_MIDDLE" : "TEMPLATE_HEAD",
+        value: chunk,
+        line: chunkLine,
+        column: chunkColumn,
+      });
+
+      hasInterpolation = true;
+      scanner.advance(); // Consume '$'
+      scanner.advance(); // Consume '{'
+      chunk = ""; 
+      
+      // Extract and tokenize the inner expression as real code
+      const exprStart = scanner.position;
+      const exprLine = scanner.line;
+      const exprColumn = scanner.column;
+      let braceDepth = 1;
+
+      while (!scanner.isAtEnd && braceDepth > 0) {
+        const c = scanner.peek();
+        if (c === '"' || c === "'") {
+          scanString(scanner, scanner.line, scanner.column);
+          continue;
+        }
+        if (c === "{") braceDepth++;
+        if (c === "}") {
+          braceDepth--;
+          if (braceDepth === 0) break;
+        }
+        scanner.advance();
+      }
+
+      if (braceDepth !== 0) {
+        throw new Error(
+          `Unclosed template interpolation at line ${startLine}, column ${startColumn}`,
+        );
+      }
+
+      const rawExpr = scanner.sliceFrom(exprStart);
+      scanner.advance(); // Consume the '}' that closes the ${...}
+
+      const innerTokens = tokenize(rawExpr)
+        .filter((t) => t.type !== "EOF")
+        .map((t) => ({
+          ...t,
+          line: t.line + exprLine - 1,
+          column: t.line === 1 ? t.column + exprColumn - 1 : t.column,
+        }));
+
+      tokens.push(...innerTokens);
+
+      chunkLine = scanner.line;
+      chunkColumn = scanner.column;
+      continue;
+    }
+
+    // Escape sequences (\n, \t, \`, \$)
+    if (char === "\\") {
+      scanner.advance();
+      const escaped = scanner.advance();
+      chunk += escaped === "n" ? "\n" : escaped === "t" ? "\t" : escaped;
+      continue;
+    }
+
+    chunk += scanner.advance();
+  }
+
+  throw new Error(
+    `Unterminated template literal at line ${startLine}, column ${startColumn}`,
+  );
 }
 
 function scanNumber(scanner: Scanner, line: number, column: number): Token {

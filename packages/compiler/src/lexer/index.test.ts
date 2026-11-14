@@ -66,3 +66,71 @@ test("Should tokenize a simple flow definition", () => {
   // Expect the opening parenthesis
   expect(lparenToken.type).toBe("LPAREN");
 });
+
+test("Should tokenize a template literal with interpolation", () => {
+  const code = "`Analiza este resulta ${result.value}`";
+  const tokens = tokenize(code);
+
+  expect(tokens.length).toBe(6);
+
+  const headToken = tokens[0]!;
+  const objectToken = tokens[1]!;
+  const dotToken = tokens[2]!;
+  const propertyToken = tokens[3]!;
+  const tailToken = tokens[4]!;
+  const eofToken = tokens[5]!;
+
+  // Expect the head of the template literal before the interpolation
+  expect(headToken.type).toBe("TEMPLATE_HEAD");
+  expect(headToken.value).toBe("Analiza este resulta ");
+
+  // Expect the interpolated member expression tokens
+  expect(objectToken.type).toBe("IDENTIFIER");
+  expect(objectToken.value).toBe("result");
+
+  expect(dotToken.type).toBe("DOT");
+  expect(dotToken.value).toBe(".");
+
+  expect(propertyToken.type).toBe("IDENTIFIER");
+  expect(propertyToken.value).toBe("value");
+
+  // Expect the closing tail of the template literal
+  expect(tailToken.type).toBe("TEMPLATE_TAIL");
+  expect(tailToken.value).toBe("");
+
+  // Expect end of file token
+  expect(eofToken.type).toBe("EOF");
+});
+
+test("Should tokenize a template literal with multiple interpolations", () => {
+  const code = "`User ${name} has ${count} alerts`";
+  const tokens = tokenize(code);
+
+  // Expect head, first expr, middle, second expr, tail, and EOF
+  expect(tokens.map((t) => t.type)).toEqual([
+    "TEMPLATE_HEAD",
+    "IDENTIFIER",
+    "TEMPLATE_MIDDLE",
+    "IDENTIFIER",
+    "TEMPLATE_TAIL",
+    "EOF",
+  ]);
+
+  expect(tokens[0]!.value).toBe("User ");
+  expect(tokens[1]!.value).toBe("name");
+  expect(tokens[2]!.value).toBe(" has ");
+  expect(tokens[3]!.value).toBe("count");
+  expect(tokens[4]!.value).toBe(" alerts");
+});
+
+test("Should tokenize a plain template literal without interpolation as STRING", () => {
+  const code = "`Plain multiline prompt`";
+  const tokens = tokenize(code);
+
+  expect(tokens.length).toBe(2);
+
+  // Expect a regular STRING token when no interpolation is present
+  expect(tokens[0]!.type).toBe("STRING");
+  expect(tokens[0]!.value).toBe("Plain multiline prompt");
+  expect(tokens[1]!.type).toBe("EOF");
+});
