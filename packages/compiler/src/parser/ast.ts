@@ -2,7 +2,14 @@
 // AST Node Types for Schema and Agent Declarations
 //------------------------------------------------------------------
 
-import type { AgentRunnerKind } from "@sam-lang/runtime";
+import type { AgentRunnerKind, ProviderProtocolKind } from "@sam-lang/runtime";
+
+export type CommonTypes =
+  | { type: "Identifier"; value: string } // e.g., "string", "number", "boolean"
+  | { type: "StringLiteral"; value: string } // e.g., "string"
+  | { type: "NumberLiteral"; value: number } // e.g., 42
+  | { type: "BooleanLiteral"; value: boolean } // e.g., true
+  | { type: "EnvLiteral"; value: string };
 
 // ------------------------------------------------------------------
 // Schema Types (v0.1.0)
@@ -104,10 +111,30 @@ export type UseExpressionNode = {
 };
 
 //------------------------------------------------------------------
+// Provider Types (v0.4.0)
+//------------------------------------------------------------------
+
+export type ProviderTypes =
+  | { type: "Identifier"; value: ProviderProtocolKind } // e.g., "openai", "anthropic"
+  | Omit<CommonTypes, "Identifier">; // e.g., string, number, boolean, env
+
+export interface ProviderPropertyNode {
+  type: "ProviderProperty";
+  name: string; // e.g., "protocol", "apiKey"
+  value: ProviderTypes; // The value of the property, which can be one of the defined types
+}
+
+export interface ProviderNode {
+  type: "ProviderDeclaration";
+  name: string; // e.g., "MyProvider"
+  properties: ProviderPropertyNode[]; // Array of provider properties
+}
+
+//------------------------------------------------------------------
 // AST Node Types
 //------------------------------------------------------------------
 
-export type ASTNode = SchemaNode | AgentNode | FlowNode;
+export type ASTNode = SchemaNode | AgentNode | FlowNode | ProviderNode;
 
 export interface ProgramNode {
   type: "Program";
