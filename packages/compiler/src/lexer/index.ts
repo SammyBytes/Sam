@@ -1,302 +1,158 @@
-export type TokenType =
-  | "SCHEMA"
-  | "AGENT"
-  | "PROVIDER"
-  | "FLOW" // flow name();
-  | "PRIVATE" // private(...)
-  | "PARALLEL" // parallel(...)
-  | "USE" // use AgentName<TSchema>(inputPrompt, schema);
-  | "UNSAFE" // use unsafe AgentName(inputPrompt);
-  | "LET" // let variableName = value;
-  | "IF" // if (condition) { ... }
-  | "ELSE" // else { ... }
-  | "RETURN" // return value;
-  | "ENV" // env(...)
-  | "IDENTIFIER" // Names (ej: "boolean", "string", "SecurityAlert", "has_security_alerts")
-  | "BOOLEAN" // Boolean literals (ej: true, false)
-  | "NUMBER" // Numeric literals (ej: 42, 3.14)
-  | "STRING" // String literals (ej: '"Hello, World!"')
-  | "LBRACE" // "{"
-  | "RBRACE" // "}"
-  | "LPAREN" // "("
-  | "RPAREN" // ")"
-  | "COLON" // ":"
-  | "SEMICOLON" // ";"
-  | "DOT" // "."
-  | "COMMA" // ","
-  | "EQUALS" // "="
-  | "NOT" // "!"
-  | "NOT_EQUALS" // "!="
-  | "GREATER_THAN" // ">"
-  | "LESS_THAN" // "<"
-  | "EQUALS_EQUALS" // "=="
-  | "TEMPLATE_HEAD" // "`"
-  | "TEMPLATE_MIDDLE" // "${"
-  | "TEMPLATE_TAIL" // "}"
-  | "EOF";
-
-export interface Token {
-  type: TokenType;
-  value: string;
-  line: number;
-  column: number;
-}
-
-// Define a mapping of keywords to their corresponding token types
-// This allows for easy identification of keywords during tokenization
-// For example, if the lexer encounters the string "schema", it will recognize it as a "SCHEMA" token type
-const KEYWORDS: Record<string, TokenType> = {
-  schema: "SCHEMA",
-  agent: "AGENT",
-  provider: "PROVIDER",
-  env: "ENV",
-  true: "BOOLEAN",
-  false: "BOOLEAN",
-  flow: "FLOW",
-  private: "PRIVATE",
-  parallel: "PARALLEL",
-  use: "USE",
-  unsafe: "UNSAFE",
-  let: "LET",
-  if: "IF",
-  else: "ELSE",
-  return: "RETURN",
-};
+import { Scanner } from "./scanner";
+import { KEYWORDS, SINGLE_CHAR_TOKENS, TWO_CHAR_TOKENS, type Token, type TokenType } from "./tokens";
 
 export function tokenize(input: string): Token[] {
+  const scanner = new Scanner(input);
   const tokens: Token[] = [];
-  let line = 1;
-  let column = 1;
-  let cursor = 0;
 
-  function advance(n: number) {
-    for (let i = 0; i < n; i++) {
-      if (input[cursor] === "\n") {
-        line++;
-        column = 1;
-      } else {
-        column++;
-      }
-      cursor++;
-    }
-  }
-
-  function expectNextChar(s: string): string | undefined {
-    return input[cursor + 1] === s ? input[cursor + 1] : undefined;
-  }
-
-  function expectChar(s: string): string | undefined {
-    return input[cursor] === s ? input[cursor] : undefined;
-  }
-
-  while (cursor < input.length) {
-    const char = input[cursor];
-
-    if (char === undefined) break;
+  while (!scanner.isAtEnd) {
+    const char = scanner.peek();
 
     // Skip whitespace
     if (/\s/.test(char)) {
-      advance(1);
+      scanner.advance();
       continue;
     }
 
-    // Delimiters and operators
-    if (char === "{") {
-      tokens.push({ type: "LBRACE", value: char, line, column });
-      advance(1);
-      continue;
-    }
+    const line = scanner.line;
+    const column = scanner.column;
 
-    if (char === "}") {
-      tokens.push({ type: "RBRACE", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (char === "(") {
-      tokens.push({ type: "LPAREN", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (char === ")") {
-      tokens.push({ type: "RPAREN", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (expectChar(">")) {
-      tokens.push({ type: "GREATER_THAN", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (expectChar("<")) {
-      tokens.push({ type: "LESS_THAN", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (char === ":") {
-      tokens.push({ type: "COLON", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (expectChar(";")) {
-      tokens.push({ type: "SEMICOLON", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (char === ",") {
-      tokens.push({ type: "COMMA", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (char === ".") {
-      tokens.push({ type: "DOT", value: char, line, column });
-      advance(1);
-      continue;
-    }
-
-    if (expectChar("!")) {
-      if (expectNextChar("=")) {
-        tokens.push({ type: "NOT_EQUALS", value: "!=", line, column });
-        advance(2);
-      } else {
-        tokens.push({ type: "NOT", value: "!", line, column });
-        advance(1);
-      }
-      continue;
-    }
-
-    // if(expectChar("$"))
-    // {
-    //   advance(1);
-    //   if(expectChar("{"))
-    //   {
-    //     tokens.push({ type: "TEMPLATE_MIDDLE", value: "${", line, column });
-    //     advance(1);
-    //   }
-    //   else
-    //   {
-    //     throw new Error(
-    //       `Unexpected character '$' at line ${line}, column ${column}`,
-    //     );
-    //   }
-    //   continue;
-    // }
-
-    // if (char === "`") {
-    //   tokens.push({ type: "TEMPLATE_HEAD", value: "`", line, column });
-    //   advance(1);
-    //   continue;
-    // }
-
-    // if (char === "}") {
-    //   tokens.push({ type: "TEMPLATE_TAIL", value: "}", line, column });
-    //   advance(1);
-    //   continue;
-    // }
-
-    if (char === "=") {
-      if (expectNextChar("=")) {
-        tokens.push({ type: "EQUALS_EQUALS", value: "==", line, column });
-        advance(2);
-      } else {
-        tokens.push({ type: "EQUALS", value: char, line, column });
-        advance(1);
-      }
-      continue;
-    }
-
-    // 5. Number Literals (300, 0.2, 4096)
-    if (/[0-9]/.test(char)) {
-      let start = cursor;
-      let startColumn = column;
-      let hasDot = false;
-
-      while (cursor < input.length) {
-        const nextChar = input[cursor];
-        if (/[0-9]/.test(nextChar)) {
-          advance(1);
-        } else if (
-          nextChar === "." &&
-          !hasDot &&
-          /[0-9]/.test(input[cursor + 1] ?? "")
-        ) {
-          hasDot = true;
-          advance(1);
-        } else {
-          break;
-        }
-      }
-
-      const numValue = input.slice(start, cursor);
+    // Delimiters and operators that consist of two characters are checked first.
+    // If the current character and the next character form a valid two-character token, it is added to the tokens list with its corresponding type, and the scanner advances to the next character.
+    const twoChar = char + scanner.peek(1);
+    if (TWO_CHAR_TOKENS[twoChar]) {
+      scanner.advance();
+      scanner.advance();
       tokens.push({
-        type: "NUMBER",
-        value: numValue,
+        type: TWO_CHAR_TOKENS[twoChar],
+        value: twoChar,
         line,
-        column: startColumn,
+        column,
       });
       continue;
     }
 
+    // Delimiters and operators that consist of a single character are checked next.
+    // If the current character matches one of these, it is added to the tokens list with its corresponding type, and the scanner advances to the next character.
+    if (SINGLE_CHAR_TOKENS[char]) {
+      scanner.advance();
+      tokens.push({
+        type: SINGLE_CHAR_TOKENS[char],
+        value: char,
+        line,
+        column,
+      });
+      continue;
+    }
+
+    // If the current character is a quote (either single or double), it indicates the start of a string literal.
+    // The scanString function is called to handle the string tokenization, and the resulting token is added to the tokens list.
     if (char === '"' || char === "'") {
-      const quoteType = char;
-      const startColumn = column;
-      advance(1); // Move past the opening quote
-      let stringValue = "";
-      while (cursor < input.length && input[cursor] !== quoteType) {
-        if (input[cursor] === "\n") {
-          throw new Error(
-            `Unterminated string literal at line ${line}, column ${column}`,
-          );
-        }
-        stringValue += input[cursor];
-        advance(1);
-      }
-
-      if (cursor >= input.length) {
-        throw new Error(
-          `Unterminated string literal at line ${line}, column ${column}`,
-        );
-      }
-
-      advance(1); // Move past the closing quote
-      tokens.push({
-        type: "STRING",
-        value: stringValue,
-        line,
-        column: startColumn,
-      });
+      tokens.push(scanString(scanner, line, column));
       continue;
     }
 
-    if (/[a-zA-Z_]/.test(char)) {
-      let start = cursor;
-      while (cursor < input.length && /[a-zA-Z0-9_]/.test(input[cursor])) {
-        advance(1);
-      }
-      const value = input.slice(start, cursor);
-      const type: TokenType = KEYWORDS[value] ?? "IDENTIFIER";
+    if (isDigit(char)) {
+      tokens.push(scanNumber(scanner, line, column));
+      continue;
+    }
 
-      tokens.push({
-        type,
-        value,
-        line,
-        column: column - (cursor - start),
-      });
+    if (isAlpha(char)) {
+      tokens.push(scanIdentifier(scanner, line, column));
       continue;
     }
 
     throw new Error(
-      `Unexpected character '${char}' at line ${line}, column ${column}`,
+      `Unexpected character '${char}' at line ${line}, column${column}`,
     );
   }
 
-  tokens.push({ type: "EOF", value: "", line, column });
+  tokens.push({
+    type: "EOF",
+    value: "",
+    line: scanner.line,
+    column: scanner.column,
+  });
   return tokens;
 }
+
+// Helper functions for scanning different types of tokens
+
+function scanString(scanner: Scanner, line: number, column: number): Token {
+  const quoteType = scanner.advance(); // Consume the opening quote
+  let value = "";
+
+  while (!scanner.isAtEnd && scanner.peek() !== quoteType) {
+    if (scanner.peek() === "\n") {
+      throw new Error(`Unterminated string at line ${line}, column ${column}`);
+    }
+    // Handle escape sequences "\" or "\n" or "\t" within the string literal. If an escape character is encountered, the next character is processed accordingly.
+    if (scanner.peek() === "\\") {
+      scanner.advance();
+      const escaped = scanner.advance();
+      value += escaped === "n" ? "\n" : escaped === "t" ? "\t" : escaped;
+      continue;
+    }
+
+    value += scanner.advance();
+  }
+
+  if (scanner.isAtEnd) {
+    throw new Error(`Unterminated string at line ${line}, column ${column}`);
+  }
+
+  scanner.advance(); // Consume the closing quote
+
+  return {
+    type: "STRING",
+    value,
+    line,
+    column,
+  };
+}
+
+function scanNumber(scanner: Scanner, line: number, column: number): Token {
+  const start = scanner.position;
+  let hasDot = false;
+
+  while (!scanner.isAtEnd) {
+    if (isDigit(scanner.peek())) {
+      scanner.advance();
+    } else if (scanner.peek() === "." && !hasDot && isDigit(scanner.peek(1))) {
+      hasDot = true;
+      scanner.advance();
+    } else {
+      break;
+    }
+  }
+
+  return {
+    type: "NUMBER",
+    value: scanner.sliceFrom(start),
+    line,
+    column,
+  };
+}
+
+function scanIdentifier(scanner: Scanner, line: number, column: number): Token {
+  const start = scanner.position;
+
+  while (!scanner.isAtEnd && isAlphaNumeric(scanner.peek())) {
+    scanner.advance();
+  }
+
+  const value = scanner.sliceFrom(start);
+  const type: TokenType = KEYWORDS[value] ?? "IDENTIFIER";
+
+  return {
+    type,
+    value,
+    line,
+    column,
+  };
+}
+
+const isDigit = (c: string): boolean => c >= "0" && c <= "9";
+const isAlpha = (c: string): boolean =>
+  (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c === "_";
+const isAlphaNumeric = (c: string): boolean => isAlpha(c) || isDigit(c);
