@@ -31,7 +31,7 @@ export interface SchemaNode {
 // ------------------------------------------------------------------
 
 export type AgentPropertyType =
-  | { type: "Identifier"; value: AgentRunnerKind |  (string & {}) } // e.g., "opencode", "mock", "openai-compatible", "anthropic"
+  | { type: "Identifier"; value: AgentRunnerKind | (string & {}) } // e.g., "opencode", "mock", "openai-compatible", "anthropic"
   | { type: "StringLiteral"; value: string } // e.g., "./src"
   | { type: "NumberLiteral"; value: number } // e.g., 42
   | { type: "BooleanLiteral"; value: boolean } // e.g., true
@@ -86,6 +86,11 @@ export type ExpressionNode =
       operator: "!";
       argument: ExpressionNode;
     }
+  | {
+      type: "TemplateLiteral";
+      quasis: Array<{ type: "TemplateElement"; value: string }>;
+      expressions: ExpressionNode[];
+    } // e.g., `Hello, ${name}!`
   | {
       type: "MemberExpression";
       object: ExpressionNode;
