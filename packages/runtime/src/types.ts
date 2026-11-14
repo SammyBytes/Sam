@@ -3,8 +3,7 @@ export const AgentRunner = {
   MOCK: "mock",
 } as const;
 
-export type AgentRunnerKind =
-  (typeof AgentRunner)[keyof typeof AgentRunner];
+export type AgentRunnerKind = (typeof AgentRunner)[keyof typeof AgentRunner];
 
 export interface AgentRunnerConfig {
   name: string;
@@ -13,3 +12,10 @@ export interface AgentRunnerConfig {
   systemPrompt?: string;
   timeout?: number;
 }
+
+export const ProviderProtocol = {
+  OPENAI: "openai",
+  ANTHROPIC: "anthropic",
+} as const;
+
+export type ProviderProtocolKind = (typeof ProviderProtocol)[keyof typeof ProviderProtocol];
