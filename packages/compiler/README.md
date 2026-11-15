@@ -33,7 +33,7 @@ The command surface lives in `@sam-lang/cli`. From the monorepo root:
 
 ```bash
 bun run sam run examples/opencode_smoke.sb
-bun run sam run examples/provider-e2e.sb
+bun run sam compile ci/sam/pr-review.sb > /dev/null
 bun run sam compile examples/full_pipeline.sb -o dist/release.ts
 bun run sam ast examples/complex_program.sb
 ```
