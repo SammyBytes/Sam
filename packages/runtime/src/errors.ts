@@ -38,4 +38,23 @@ export type AgentError =
       rawOutput: string;
       issues: z.core.$ZodIssue[];
       message: string;
+    }
+  | {
+      code: "PROVIDER_NOT_FOUND";
+      agentName: string;
+      providerName: string;
+      message: string;
+    }
+  | {
+      code: "PROVIDER_NOT_SUPPORTED";
+      agentName: string;
+      protocol: string;
+      message: string;
+    }
+  | {
+      code: "PROVIDER_HTTP_ERROR";
+      agentName: string;
+      providerName: string;
+      statusCode?: number;
+      message: string;
     };
