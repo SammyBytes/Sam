@@ -13,7 +13,7 @@ export function generateProvider(providerNode: ProviderNode): string {
   const configFields: string[] = [
     `name: ${JSON.stringify(providerNode.name)}`,
     `protocol: ${JSON.stringify(protocolProp?.value.value)}`,
-    `baseUrl: ${JSON.stringify(baseUrlProp?.value.value)}`,
+    `baseUrl: ${formatStringOrEnv(baseUrlProp!.value)}`,
   ];
 
  if (apiKeyProp) {

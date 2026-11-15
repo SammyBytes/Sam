@@ -458,6 +458,39 @@ test("should parse a valid ProviderDeclaration connected to an AgentDeclaration"
   }
 });
 
+test("should allow env() for agent model, workspace, and system_prompt", () => {
+  const code = `
+    agent LocalAgent {
+      runner: opencode
+      workspace: env("AGENT_WORKSPACE")
+      model: env("AGENT_MODEL")
+      system_prompt: env("AGENT_SYSTEM_PROMPT")
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const agent = ast.body[0];
+
+  expect(agent.type).toBe("AgentDeclaration");
+  if (agent.type === "AgentDeclaration") {
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "workspace",
+      value: { type: "EnvLiteral", value: "AGENT_WORKSPACE" },
+    });
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "model",
+      value: { type: "EnvLiteral", value: "AGENT_MODEL" },
+    });
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "system_prompt",
+      value: { type: "EnvLiteral", value: "AGENT_SYSTEM_PROMPT" },
+    });
+  }
+});
+
 test("should throw on invalid or incomplete ProviderDeclaration properties", () => {
   const missingBaseUrl = `
     provider Groq {

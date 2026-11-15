@@ -12,9 +12,9 @@ const AGENT_PROPERTY_VALIDATORS: Record<string, AgentPropertyValidator> = {
   name: validateString,
   provider: validateProviderRef,
   runner: validateRunnerKind,
-  model: validateString,
-  workspace: validateString,
-  system_prompt: validateString,
+  model: validateStringOrEnv,
+  workspace: validateStringOrEnv,
+  system_prompt: validateStringOrEnv,
   system_prompt_file: validateString,
   timeout: validateNumber,
   temperature: validateNumber,
@@ -205,6 +205,14 @@ function validateString(value: AgentPropertyType, token: Token): void {
   if (value.type !== "StringLiteral") {
     throw new Error(
       `ValidationError in agent '${token.value}' (line ${token.line}): Expected a string value.`,
+    );
+  }
+}
+
+function validateStringOrEnv(value: AgentPropertyType, token: Token): void {
+  if (value.type !== "StringLiteral" && value.type !== "EnvLiteral") {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a string or env("VAR") value.`,
     );
   }
 }

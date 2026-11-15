@@ -299,6 +299,34 @@ test("should generate providers array and pass it to createRuntime when provider
   expect(output).toContain("], providers);");
 });
 
+test("should resolve env() for provider base_url and agent model/system_prompt", () => {
+  const code = `
+    provider EnvProvider {
+      protocol: "openai-compatible"
+      base_url: env("PROVIDER_BASE_URL")
+      api_key: env("PROVIDER_API_KEY")
+    }
+
+    agent EnvAgent {
+      provider: EnvProvider
+      model: env("PROVIDER_MODEL")
+      system_prompt: env("PROVIDER_SYSTEM_PROMPT")
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+  const output = generateCode(ast);
+
+  expect(output).toContain('baseUrl: Bun.env.PROVIDER_BASE_URL ?? ""');
+  expect(output).toContain('apiKey: Bun.env.PROVIDER_API_KEY ?? ""');
+  expect(output).toContain(
+    'model: Bun.env.PROVIDER_MODEL ?? "", systemPrompt: Bun.env.PROVIDER_SYSTEM_PROMPT ?? ""',
+  );
+  expect(output).not.toContain('baseUrl: "PROVIDER_BASE_URL"');
+});
+
 test("should generate hybrid program mixing HTTP provider agents and local CLI runner agents", () => {
   const code = `
     schema Finding {
