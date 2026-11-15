@@ -76,7 +76,7 @@ jobs:
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
-          max_chars=60000
+          max_chars=20000
           diff_chars="$(wc -c < "$diff_file" | tr -d ' ')"
           truncated="false"
           if [ "$diff_chars" -gt "$max_chars" ]; then
@@ -106,28 +106,41 @@ jobs:
         id: input
 
       - name: Run Sam review
+        id: review
         if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
         run: |
           attempt=1
-          max_attempts=3
+          max_attempts=4
           while [ "$attempt" -le "$max_attempts" ]; do
             echo "Sam review attempt $attempt of $max_attempts"
             if ./dist/sam run ci/sam/pr-review.sb \
               < "$RUNNER_TEMP/review-input.txt" \
-              > "$RUNNER_TEMP/review-attempt.json"; then
+              > "$RUNNER_TEMP/review-attempt.json" \
+              2> "$RUNNER_TEMP/review-attempt.err"; then
               mv "$RUNNER_TEMP/review-attempt.json" "$RUNNER_TEMP/review.json"
+              echo "ok=true" >> "$GITHUB_OUTPUT"
               cat "$RUNNER_TEMP/review.json"
               exit 0
             fi
-            echo "::warning title=Sam review attempt failed::Attempt $attempt failed; retrying."
+
+            cat "$RUNNER_TEMP/review-attempt.err" || true
+            if grep -q -E 'rate_limit_exceeded|"statusCode": 429' "$RUNNER_TEMP/review-attempt.err"; then
+              wait_seconds=$((attempt * 15))
+              echo "::warning title=Sam review rate limited::Waiting ${wait_seconds}s before retrying."
+            else
+              wait_seconds=5
+              echo "::warning title=Sam review attempt failed::Attempt $attempt failed; retrying in ${wait_seconds}s."
+            fi
+
             attempt=$((attempt + 1))
-            sleep 5
+            sleep "$wait_seconds"
           done
-          echo "::error title=Sam review failed::The review flow did not return a valid result after $max_attempts attempts."
-          exit 1
+
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+          echo "::warning title=Sam review unavailable::The advisory review could not be generated after $max_attempts attempts. Deterministic CI is unaffected."
 
       - name: Validate review schema
-        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && steps.review.outputs.ok == 'true'
         run: |
           jq -e '
             (.verdict | type == "string" and IN("approve", "comment", "request_changes")) and
@@ -139,9 +152,16 @@ jobs:
           echo "Review output matches the expected schema."
 
       - name: Render comment
-        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && steps.review.outputs.ok == 'true'
         run: |
           file="$RUNNER_TEMP/review.json"
+
+          format_items() {
+            jq -r "$1 // \"\"" "$file" \
+              | sed 's/ | /\n/g' \
+              | awk 'NF && $0 !~ /^[[:space:]]*(None|none|N\/A|n\/a)\.?[[:space:]]*$/ { if ($0 ~ /^[[:space:]]*-[[:space:]]/) print; else print "- " $0 }'
+          }
+
           {
             echo '<!-- sam-pr-review -->'
             echo '## Sam PR Review'
@@ -150,14 +170,14 @@ jobs:
             echo
             jq -r '.summary' "$file"
             echo
-            findings="$(jq -r '.findings // ""' "$file")"
+            findings="$(format_items '.findings')"
             if [ -n "$findings" ]; then
               echo '### Findings'
               echo
               echo "$findings"
               echo
             fi
-            tests="$(jq -r '.suggested_tests // ""' "$file")"
+            tests="$(format_items '.suggested_tests')"
             if [ -n "$tests" ]; then
               echo '### Suggested tests'
               echo
@@ -168,7 +188,7 @@ jobs:
           } > "$RUNNER_TEMP/comment.md"
 
       - name: Post or update review comment
-        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && env.PR_NUMBER != ''
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && steps.review.outputs.ok == 'true' && env.PR_NUMBER != ''
         env:
           REPO: ${{ github.repository }}
         run: |
@@ -189,5 +209,14 @@ jobs:
           fi
 
       - name: Write job summary
-        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && steps.review.outputs.ok == 'true'
         run: cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Note unavailable review
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && steps.review.outputs.ok != 'true'
+        run: |
+          {
+            echo '## Sam PR Review'
+            echo
+            echo 'The advisory review could not be generated after several attempts, most likely because of a provider rate limit or a transient error. Deterministic CI is unaffected.'
+          } >> "$GITHUB_STEP_SUMMARY"
