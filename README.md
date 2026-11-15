@@ -1,6 +1,6 @@
 # Sam (`.sb`)
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/SammyBytes/Sam/releases)
+[![Version](https://img.shields.io/badge/version-0.5.0--rc.1-blue.svg)](https://github.com/SammyBytes/Sam/releases)
 [![Runtime](https://img.shields.io/badge/runtime-Bun-000000.svg?logo=bun&logoColor=white)](https://bun.sh)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE-MIT)
 
@@ -198,7 +198,7 @@ mkdir -p ~/.local/bin
 cp dist/sam ~/.local/bin/sam
 
 sam --version
-# 0.5.0
+# 0.5.0-rc.1
 ```
 
 Add `~/.local/bin` to your `PATH` using the commands shown in the Linux or macOS section above.

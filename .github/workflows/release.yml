@@ -38,6 +38,14 @@ jobs:
         with:
           bun-version: 1.4.2
 
+      - name: Verify tag matches package version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package version v$version"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -98,10 +106,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ contains(github.ref_name, '-') }}
         run: |
           ls -lh release
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" release/* --clobber --repo "$GITHUB_REPOSITORY"
+          elif [ "$PRERELEASE" = "true" ]; then
+            gh release create "$TAG" release/* --generate-notes --title "$TAG" --prerelease --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" release/* --generate-notes --title "$TAG" --repo "$GITHUB_REPOSITORY"
           fi
