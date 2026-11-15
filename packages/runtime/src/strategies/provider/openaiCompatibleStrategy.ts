@@ -38,10 +38,12 @@ export class OpenAICompatibleStrategy implements IProviderStrategy {
       body.temperature = agent.temperature;
     }
 
-    if(agent.maxTokens !== undefined) {
-      body.max_completion_tokens = agent.maxTokens;
+    if (agent.maxTokens !== undefined) {
+      // `max_tokens` is the field understood by both OpenAI and the widest
+      // range of OpenAI-compatible servers (Ollama, LM Studio, Groq, ...).
+      body.max_tokens = agent.maxTokens;
     }
-    
+
     if (schema) {
       const jsonSchema = z.toJSONSchema(schema, {
         target: "openapi-3.0",

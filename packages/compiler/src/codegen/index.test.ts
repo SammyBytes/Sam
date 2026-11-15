@@ -416,3 +416,53 @@ test("should generate hybrid program mixing HTTP provider agents and local CLI r
   );
   expect(output).toContain('await sam.useUnsafe("LocalFixer", codeSnippet)');
 });
+
+test("should generate strictSchema, maxTokens, and retries config fields", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+      strict_schema: true
+    }
+
+    agent Reviewer {
+      provider: Groq
+      model: "openai/gpt-oss-20b"
+      temperature: 0
+      max_tokens: 2048
+      retries: 3
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    '{ name: "Groq", protocol: "openai-compatible", baseUrl: "https://api.groq.com/openai/v1", strictSchema: true }',
+  );
+  expect(output).toContain(
+    '{ name: "Reviewer", provider: "Groq", model: "openai/gpt-oss-20b", temperature: 0, maxTokens: 2048, retries: 3 }',
+  );
+});
+
+test("should omit strictSchema when the provider does not enable it", () => {
+  const code = `
+    provider Compatible {
+      protocol: "openai-compatible"
+      base_url: "http://localhost:11434/v1"
+    }
+
+    agent Reviewer {
+      provider: Compatible
+      model: "llama3"
+      max_tokens: 256
+      retries: 0
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    '{ name: "Compatible", protocol: "openai-compatible", baseUrl: "http://localhost:11434/v1" }',
+  );
+  expect(output).toContain("maxTokens: 256, retries: 0");
+});

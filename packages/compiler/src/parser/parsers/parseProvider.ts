@@ -145,6 +145,15 @@ function validateProviderProperties(
     }
 
     if (
+      property.name === "strict_schema" &&
+      property.value.type !== "BooleanLiteral"
+    ) {
+      throw new Error(
+        `SyntaxError: Invalid value for 'strict_schema' in provider '${providerName.value}' at line ${providerName.line}, column ${providerName.column}. Expected true or false.`,
+      );
+    }
+
+    if (
       (property.name === "api_key" || property.name === "base_url") &&
       property.value.type !== "StringLiteral" &&
       property.value.type !== "EnvLiteral"

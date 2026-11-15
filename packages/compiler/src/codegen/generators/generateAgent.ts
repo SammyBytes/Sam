@@ -1,4 +1,3 @@
-import { config } from "zod";
 import type { AgentNode, AgentPropertyNode } from "../../parser/ast";
 import { formatStringOrEnv } from "../helper";
 

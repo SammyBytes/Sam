@@ -20,7 +20,7 @@ export function generateProvider(providerNode: ProviderNode): string {
   if (apiKeyProp) {
     configFields.push(`apiKey: ${formatStringOrEnv(apiKeyProp.value)}`);
   }
-  if (strictSchemaProp) {
+  if (strictSchemaProp && strictSchemaProp.value.type === "BooleanLiteral") {
     configFields.push(`strictSchema: ${strictSchemaProp.value.value}`);
   }
 

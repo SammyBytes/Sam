@@ -7,9 +7,11 @@ import type {
 import type { ProviderAgentConfig } from "./agents/agentConfig";
 import type { ProviderConfig } from "./provider/providerConfig";
 
-const RETRYABLE_STATUS_CODES = new Set([429, 502, 503, 504]);
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
 const BASE_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
+// Guardrail: a runaway `retries` value in a flow must not hang the process.
+export const MAX_RETRIES = 5;
 
 function parseRetryAfterMs(headerValue: string | null): number | null {
   if (!headerValue) return null;
@@ -50,7 +52,10 @@ export async function providerExecute(
   spec: HttpRequestSpec,
   sleepFn: (ms: number) => Promise<void> = (ms) => Bun.sleep(ms),
 ): Promise<Result<string, AgentError>> {
-  const maxRetries = Math.max(0, Math.floor(agent.retries ?? 0));
+  const maxRetries = Math.min(
+    MAX_RETRIES,
+    Math.max(0, Math.floor(agent.retries ?? 0)),
+  );
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
