@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { IAgentStrategy } from "./agentStrategy";
-import type { AgentConfig } from "../../engine/agentConfig";
+import type { AgentConfig } from "../../engine/agents/agentConfig";
 
 export class OpenCodeStrategy implements IAgentStrategy {
   getBinaryName(): string {
