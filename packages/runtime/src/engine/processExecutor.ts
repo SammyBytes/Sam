@@ -1,6 +1,6 @@
 import type { AgentError } from "../errors";
 import { err, ok, type Result } from "../result";
-import type { AgentConfig } from "./agentConfig";
+import type { AgentConfig } from "./agents/agentConfig";
 
 const stripAnsi = (text: string): string =>
   text.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, "").trim();

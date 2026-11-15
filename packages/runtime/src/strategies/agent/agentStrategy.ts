@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { AgentConfig } from "../../engine/agentConfig";
+import type { AgentConfig } from "../../engine/agents/agentConfig";
 export interface IAgentStrategy {
   /**
    * Builds the arguments for the agent based on the provided properties.

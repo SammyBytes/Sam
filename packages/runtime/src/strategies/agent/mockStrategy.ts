@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { IAgentStrategy } from "./agentStrategy";
-import type { AgentConfig } from "../../engine/agentConfig";
+import type { AgentConfig } from "../../engine/agents/agentConfig";
 
 function generateMockFromSchema(schema: z.ZodTypeAny): unknown {
   const jsonSchema = z.toJSONSchema(schema, { target: "openapi-3.0" }) as {

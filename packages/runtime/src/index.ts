@@ -1,6 +1,6 @@
-export { createRuntime, type Runtime } from "./engine/agentAction";
+export { createRuntime, type Runtime } from "./engine/agents/agentAction";
 
-export * from "./engine/agentConfig";
+export * from "./engine/agents/agentConfig";
 export * from "./errors";
 export * from "./types";
 
