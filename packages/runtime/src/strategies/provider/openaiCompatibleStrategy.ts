@@ -38,6 +38,10 @@ export class OpenAICompatibleStrategy implements IProviderStrategy {
       body.temperature = agent.temperature;
     }
 
+    if(agent.maxTokens !== undefined) {
+      body.max_completion_tokens = agent.maxTokens;
+    }
+    
     if (schema) {
       const jsonSchema = z.toJSONSchema(schema, {
         target: "openapi-3.0",

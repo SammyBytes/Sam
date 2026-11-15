@@ -1,3 +1,4 @@
+import { config } from "zod";
 import type { AgentNode, AgentPropertyNode } from "../../parser/ast";
 import { formatStringOrEnv } from "../helper";
 
@@ -16,6 +17,10 @@ export function generateAgent(agentNode: AgentNode): string {
   const workspaceProp = props.get("workspace");
   const modelProp = props.get("model");
   const systemPromptProp = props.get("system_prompt");
+  const maxTokens = getPropertyValue(props.get("max_tokens")) as
+    | number
+    | undefined;
+  const retries = getPropertyValue(props.get("retries")) as number | undefined;
   const temperature = getPropertyValue(props.get("temperature")) as
     | number
     | undefined;
@@ -69,6 +74,14 @@ export function generateAgent(agentNode: AgentNode): string {
 
   if (temperature !== undefined) {
     configFields.push(`temperature: ${temperature}`);
+  }
+
+  if (maxTokens !== undefined) {
+    configFields.push(`maxTokens: ${maxTokens}`);
+  }
+
+  if (retries !== undefined) {
+    configFields.push(`retries: ${retries}`);
   }
 
   if (timeoutSec !== undefined) {

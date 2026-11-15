@@ -17,6 +17,7 @@ export type ProviderAgentConfig = {
   timeout?: number;
   temperature?: number;
   maxTokens?: number;
+  retries?: number;
 };
 
 export type AgentConfig = LocalAgentConfig | ProviderAgentConfig;
