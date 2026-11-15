@@ -1,4 +1,5 @@
 import type { ProviderNode } from "../../parser/ast";
+import { formatStringOrEnv } from "../helper";
 
 export function generateProvider(providerNode: ProviderNode): string {
   const props = new Map(
@@ -15,9 +16,9 @@ export function generateProvider(providerNode: ProviderNode): string {
     `baseUrl: ${JSON.stringify(baseUrlProp?.value.value)}`,
   ];
 
-  if (apiKeyProp !== undefined) {
-    configFields.push(`apiKey: ${JSON.stringify(apiKeyProp.value.value)}`);
-  }
+ if (apiKeyProp) {
+  configFields.push(`apiKey: ${formatStringOrEnv(apiKeyProp.value)}`);
+}
 
   return `{ ${configFields.join(", ")} }`;
 }

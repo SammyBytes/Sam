@@ -263,3 +263,91 @@ test("should throw an error on duplicate flow declarations", () => {
     generateCode(ast);
   }).toThrow();
 });
+test("should generate providers array and pass it to createRuntime when providers are declared", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+      api_key: env("GROQ_API_KEY")
+    }
+
+    agent FastReviewer {
+      provider: Groq
+      model: "llama-3.3-70b-versatile"
+      system_prompt: "Be concise."
+      temperature: 0.2
+      timeout: 15
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+  const output = generateCode(ast);
+
+  expect(output).toContain(
+    'import { createRuntime } from "@sam-lang/runtime";',
+  );
+  expect(output).toContain("const providers = [");
+  expect(output).toContain(
+    '{ name: "Groq", protocol: "openai-compatible", baseUrl: "https://api.groq.com/openai/v1", apiKey: Bun.env.GROQ_API_KEY ?? "" }',
+  );
+  expect(output).toContain("const sam = createRuntime([");
+  expect(output).toContain(
+    '{ name: "FastReviewer", provider: "Groq", model: "llama-3.3-70b-versatile", systemPrompt: "Be concise.", temperature: 0.2, timeout: 15000 }',
+  );
+  expect(output).toContain("], providers);");
+});
+
+test("should generate hybrid program mixing HTTP provider agents and local CLI runner agents", () => {
+  const code = `
+    schema Finding {
+      severity: string
+    }
+
+    provider OpenRouter {
+      protocol: "openai-compatible"
+      base_url: "https://openrouter.ai/api/v1"
+    }
+
+    agent CloudClassifier {
+      provider: OpenRouter
+      model: "anthropic/claude-3.5-sonnet"
+    }
+
+    agent LocalFixer {
+      runner: opencode
+      workspace: "./src"
+    }
+
+    flow HybridPipeline(codeSnippet: string) {
+      let classification = use CloudClassifier<Finding>(codeSnippet)
+      if (!classification.ok) {
+        return use unsafe LocalFixer(codeSnippet)
+      }
+      return classification.value
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+  const output = generateCode(ast);
+
+  expect(output).toContain("export const FindingSchema = z.object({");
+  expect(output).toContain("const providers = [");
+  expect(output).toContain(
+    '{ name: "OpenRouter", protocol: "openai-compatible", baseUrl: "https://openrouter.ai/api/v1" }',
+  );
+  expect(output).toContain(
+    '{ name: "CloudClassifier", provider: "OpenRouter", model: "anthropic/claude-3.5-sonnet" }',
+  );
+  expect(output).toContain(
+    '{ name: "LocalFixer", runner: "opencode", workspace: "./src" }',
+  );
+  expect(output).toContain("], providers);");
+  expect(output).toContain(
+    'await sam.use("CloudClassifier", codeSnippet, FindingSchema)',
+  );
+  expect(output).toContain('await sam.useUnsafe("LocalFixer", codeSnippet)');
+});

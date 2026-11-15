@@ -89,7 +89,7 @@ async function executeAgent(
 
 export function createRuntime(
   agents: AgentConfig[],
-  providers: ProviderConfig[],
+  providers: ProviderConfig[] = [],
 ): Runtime {
   const agentMap = new Map(agents.map((a) => [a.name, a]));
   const providerMap = new Map(providers.map((p) => [p.name, p]));
