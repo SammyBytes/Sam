@@ -109,35 +109,18 @@ jobs:
         id: review
         if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
         run: |
-          attempt=1
-          max_attempts=4
-          while [ "$attempt" -le "$max_attempts" ]; do
-            echo "Sam review attempt $attempt of $max_attempts"
-            if ./dist/sam run ci/sam/pr-review.sb \
-              < "$RUNNER_TEMP/review-input.txt" \
-              > "$RUNNER_TEMP/review-attempt.json" \
-              2> "$RUNNER_TEMP/review-attempt.err"; then
-              mv "$RUNNER_TEMP/review-attempt.json" "$RUNNER_TEMP/review.json"
-              echo "ok=true" >> "$GITHUB_OUTPUT"
-              cat "$RUNNER_TEMP/review.json"
-              exit 0
-            fi
+          if ./dist/sam run ci/sam/pr-review.sb \
+            < "$RUNNER_TEMP/review-input.txt" \
+            > "$RUNNER_TEMP/review.json" \
+            2> "$RUNNER_TEMP/review.err"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            cat "$RUNNER_TEMP/review.json"
+            exit 0
+          fi
 
-            cat "$RUNNER_TEMP/review-attempt.err" || true
-            if grep -q -E 'rate_limit_exceeded|"statusCode": 429' "$RUNNER_TEMP/review-attempt.err"; then
-              wait_seconds=$((attempt * 15))
-              echo "::warning title=Sam review rate limited::Waiting ${wait_seconds}s before retrying."
-            else
-              wait_seconds=5
-              echo "::warning title=Sam review attempt failed::Attempt $attempt failed; retrying in ${wait_seconds}s."
-            fi
-
-            attempt=$((attempt + 1))
-            sleep "$wait_seconds"
-          done
-
+          cat "$RUNNER_TEMP/review.err" || true
           echo "ok=false" >> "$GITHUB_OUTPUT"
-          echo "::warning title=Sam review unavailable::The advisory review could not be generated after $max_attempts attempts. Deterministic CI is unaffected."
+          echo "::warning title=Sam review unavailable::The advisory review could not be generated. Deterministic CI is unaffected."
 
       - name: Validate review schema
         if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && steps.review.outputs.ok == 'true'
