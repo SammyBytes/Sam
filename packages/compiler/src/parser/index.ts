@@ -5,6 +5,7 @@ import { parseFlow } from "./parsers/parseFlow";
 import { parseProvider } from "./parsers/parseProvider";
 import { parseSchema } from "./parsers/parseSchema";
 import type { IParserContext } from "./types";
+import { validateProgram } from "./validator";
 
 export class Parser implements IParserContext {
   private tokens: Token[];
@@ -58,6 +59,7 @@ export class Parser implements IParserContext {
 
     while (!this.isAtEnd()) {
       const token = this.peek();
+
       switch (token.type) {
         case "SCHEMA":
           body.push(parseSchema(this));
@@ -79,9 +81,12 @@ export class Parser implements IParserContext {
       }
     }
 
-    return {
+    const programNode: ProgramNode = {
       type: "Program",
       body,
     };
+
+    validateProgram(programNode);
+    return programNode;
   }
 }
