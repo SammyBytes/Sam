@@ -501,7 +501,7 @@ Sam runs its own repository automation from [`ci/sam/`](./ci/sam). The determini
 
 The workflow reads `GROQ_API_KEY` from repository secrets and uses `openai/gpt-oss-20b` with `temperature: 0`. For drafts, forks, and repositories without the secret, the review is skipped with a workflow notice. The review is advisory: it never approves, merges, or blocks a pull request. `ci.yml` remains the required check.
 
-The diff is treated as untrusted data. Pull request metadata is passed to the shell through environment variables instead of direct expression interpolation, the diff is capped at 60,000 bytes, and the workflow runs only on `pull_request` with `contents: read` and `pull-requests: write` permissions.
+The diff is treated as untrusted data. Pull request metadata is passed to the shell through environment variables instead of direct expression interpolation, the diff is capped at 20,000 bytes to stay inside the provider's token-per-minute limit, and the workflow runs only on `pull_request` with `contents: read` and `pull-requests: write` permissions. Rate limits and transient provider failures are retried with backoff; if the advisory review still cannot run, the job reports a warning and leaves the deterministic checks in charge.
 
 Pushing a `v*` tag triggers the release workflow, which builds Linux, macOS, and Windows binaries and attaches them to the GitHub Release.
 
