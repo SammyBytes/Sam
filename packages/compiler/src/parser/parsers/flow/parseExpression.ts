@@ -114,6 +114,45 @@ function parseCall(
  * @param context The parser context.
  * @returns An ExpressionNode representing the primary expression.
  */
+function parseTemplateLiteral(context: IParserContext): ExpressionNode {
+  const head = context.consume(
+    "TEMPLATE_HEAD",
+    "Expected template literal head",
+  );
+
+  const quasis: Array<{ type: "TemplateElement"; value: string }> = [
+    { type: "TemplateElement", value: head.value },
+  ];
+  const expressions: ExpressionNode[] = [];
+
+  while (true) {
+    expressions.push(parseExpression(context));
+
+    const next = context.peek();
+    if (next.type === "TEMPLATE_MIDDLE") {
+      context.advance();
+      quasis.push({ type: "TemplateElement", value: next.value });
+      continue;
+    }
+
+    if (next.type === "TEMPLATE_TAIL") {
+      context.advance();
+      quasis.push({ type: "TemplateElement", value: next.value });
+      break;
+    }
+
+    throw new Error(
+      `SyntaxError: Expected template literal continuation at line ${next.line}, column ${next.column}, got '${next.value}' (${next.type}).`,
+    );
+  }
+
+  return {
+    type: "TemplateLiteral",
+    quasis,
+    expressions,
+  };
+}
+
 function parsePrimary(context: IParserContext): ExpressionNode {
   const token = context.peek();
 
@@ -140,6 +179,10 @@ function parsePrimary(context: IParserContext): ExpressionNode {
         type: "Literal",
         value: token.value === "true",
       };
+    }
+
+    case "TEMPLATE_HEAD": {
+      return parseTemplateLiteral(context);
     }
 
     case "USE": {

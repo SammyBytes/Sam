@@ -387,6 +387,38 @@ test("should parse safe and unsafe UseExpression inside flow body", () => {
   }
 });
 
+test("should parse template literals with interpolated expressions", () => {
+  const code = `
+    flow BuildPrompt(draft: string, reviewer: string) {
+      let prompt = \`Review from \${reviewer}: \${draft}\`
+      return prompt
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const flow = ast.body[0];
+
+  expect(flow.type).toBe("FlowDeclaration");
+  if (flow.type === "FlowDeclaration") {
+    const statement = flow.body[0];
+    expect(statement.type).toBe("LetStatement");
+    if (statement.type === "LetStatement") {
+      expect(statement.value).toEqual({
+        type: "TemplateLiteral",
+        quasis: [
+          { type: "TemplateElement", value: "Review from " },
+          { type: "TemplateElement", value: ": " },
+          { type: "TemplateElement", value: "" },
+        ],
+        expressions: [
+          { type: "Identifier", name: "reviewer" },
+          { type: "Identifier", name: "draft" },
+        ],
+      });
+    }
+  }
+});
+
 test("should throw SyntaxError on invalid UseExpression schema combinations", () => {
   const safeWithoutSchema = `flow Bad() { let x = use Auditor("hi") }`;
   const unsafeWithSchema = `flow Bad() { let x = use unsafe Auditor<Report>("hi") }`;

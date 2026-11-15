@@ -187,6 +187,48 @@ flow main() {
     expect(result.ephemeralFiles, context).toEqual([]);
   });
 
+  test("chains one agent's response into another through a template literal", async () => {
+    const source = `
+schema Draft {
+  body: string
+}
+
+agent Writer {
+  runner: mock,
+  workspace: "."
+}
+
+agent Reviewer {
+  runner: mock,
+  workspace: "."
+}
+
+flow main(input: string) {
+  let draft = use Writer<Draft>(input)
+  if (!draft.ok) {
+    return draft
+  }
+
+  let review = use unsafe Reviewer(\`Review this: \${draft.value.body}\`)
+  if (!review.ok) {
+    return review
+  }
+
+  return review.value
+}
+`;
+
+    const result = await runSam(source, { stdinText: "original input" });
+    const context = describeRun(result);
+
+    expect(result.exitCode, context).toBe(0);
+    expect(result.stdout.trim(), context).toBe(
+      "Mock output for: Review this: mock_body",
+    );
+    expect(result.stderr, context).toBe("");
+    expect(result.ephemeralFiles, context).toEqual([]);
+  });
+
   test("reads a single string argument from stdin when no flow args are given", async () => {
     const source = `
 flow main(input: string) {

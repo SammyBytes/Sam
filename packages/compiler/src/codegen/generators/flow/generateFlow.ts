@@ -11,6 +11,13 @@ const MAPPING_BINARY_OPERATOR: Record<string, string> = {
   ">": ">",
 };
 
+function escapeTemplateChunk(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/`/g, "\\`")
+    .replace(/\$\{/g, "\\${");
+}
+
 export function generateFlow(
   flowNode: FlowNode,
   flowNames: Set<string> = new Set(),
@@ -91,6 +98,17 @@ function generateExpression(
       return JSON.stringify(expression.value);
     case "Identifier":
       return expression.name;
+    case "TemplateLiteral": {
+      let result = "`";
+      expression.quasis.forEach((quasi, index) => {
+        result += escapeTemplateChunk(quasi.value);
+        const interpolated = expression.expressions[index];
+        if (interpolated !== undefined) {
+          result += `\${${generateExpression(interpolated, flowNames)}}`;
+        }
+      });
+      return `${result}\``;
+    }
     case "MemberExpression": {
       const object = generateExpression(expression.object, flowNames);
       return `${object}.${expression.property}`;

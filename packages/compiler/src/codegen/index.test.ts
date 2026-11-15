@@ -148,6 +148,43 @@ test("should generate async function for a complete program with schema, agent a
   );
 });
 
+test("should generate template literals and chained agent responses", () => {
+  const code = `
+    schema Draft {
+      body: string
+    }
+
+    agent Writer {
+      runner: mock
+      workspace: "."
+    }
+
+    agent Reviewer {
+      runner: mock
+      workspace: "."
+    }
+
+    flow main(input: string) {
+      let draft = use Writer<Draft>(input)
+      if (!draft.ok) {
+        return draft
+      }
+      let review = use unsafe Reviewer(\`Review this: \${draft.value.body}\`)
+      if (!review.ok) {
+        return review
+      }
+      return review.value
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const output = generateCode(ast);
+
+  expect(output).toContain(
+    'const review = await sam.useUnsafe("Reviewer", `Review this: ${draft.value.body}`);',
+  );
+});
+
 test("should omit export keyword for private flows", () => {
   const code = `
     private flow InternalHelper(input: string) {
