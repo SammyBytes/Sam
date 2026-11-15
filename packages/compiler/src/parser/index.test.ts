@@ -394,3 +394,185 @@ test("should throw SyntaxError on invalid UseExpression schema combinations", ()
   expect(() => new Parser(tokenize(safeWithoutSchema)).parse()).toThrow();
   expect(() => new Parser(tokenize(unsafeWithSchema)).parse()).toThrow();
 });
+
+test("should parse a valid ProviderDeclaration connected to an AgentDeclaration", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+      api_key: env("GROQ_API_KEY")
+    }
+
+    agent Reviewer {
+      provider: Groq
+      model: "llama-3.3-70b-versatile"
+      system_prompt: "You are a strict security auditor."
+      temperature: 0.1
+    }
+  `;
+
+  const tokens = tokenize(code);
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+
+  expect(ast.type).toBe("Program");
+  expect(ast.body).toHaveLength(2);
+
+  const provider = ast.body[0];
+  expect(provider.type).toBe("ProviderDeclaration");
+
+  if (provider.type === "ProviderDeclaration") {
+    expect(provider.name).toBe("Groq");
+    expect(provider.properties).toEqual([
+      {
+        type: "ProviderProperty",
+        name: "protocol",
+        value: { type: "StringLiteral", value: "openai-compatible" },
+      },
+      {
+        type: "ProviderProperty",
+        name: "base_url",
+        value: {
+          type: "StringLiteral",
+          value: "https://api.groq.com/openai/v1",
+        },
+      },
+      {
+        type: "ProviderProperty",
+        name: "api_key",
+        value: { type: "EnvLiteral", value: "GROQ_API_KEY" },
+      },
+    ]);
+  }
+
+  const agent = ast.body[1];
+  expect(agent.type).toBe("AgentDeclaration");
+
+  if (agent.type === "AgentDeclaration") {
+    expect(agent.name).toBe("Reviewer");
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "provider",
+      value: { type: "Identifier", value: "Groq" },
+    });
+  }
+});
+
+test("should throw on invalid or incomplete ProviderDeclaration properties", () => {
+  const missingBaseUrl = `
+    provider Groq {
+      protocol: "openai-compatible"
+    }
+  `;
+
+  const invalidProtocol = `
+    provider Groq {
+      protocol: "unsupported-protocol"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+  `;
+
+  const unknownProperty = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+      model: "llama-3.3-70b-versatile"
+    }
+  `;
+
+  const duplicateProperty = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+      base_url: "https://api.groq.com/openai/v2"
+    }
+  `;
+
+  expect(() => new Parser(tokenize(missingBaseUrl)).parse()).toThrow();
+  expect(() => new Parser(tokenize(invalidProtocol)).parse()).toThrow();
+  expect(() => new Parser(tokenize(unknownProperty)).parse()).toThrow();
+  expect(() => new Parser(tokenize(duplicateProperty)).parse()).toThrow();
+});
+
+test("should enforce strict agent rules when using provider vs runner", () => {
+  const bothProviderAndRunner = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+    agent BadAgent {
+      provider: Groq
+      runner: opencode
+      model: "llama-3.3-70b-versatile"
+    }
+  `;
+
+  const neitherProviderNorRunner = `
+    agent OrphanAgent {
+      model: "llama-3.3-70b-versatile"
+    }
+  `;
+
+  const providerWithWorkspace = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+    agent BadHttpAgent {
+      provider: Groq
+      model: "llama-3.3-70b-versatile"
+      workspace: "./src"
+    }
+  `;
+
+  const providerWithoutModel = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+    agent ModelLessAgent {
+      provider: Groq
+    }
+  `;
+
+  expect(() => new Parser(tokenize(bothProviderAndRunner)).parse()).toThrow();
+  expect(() =>
+    new Parser(tokenize(neitherProviderNorRunner)).parse(),
+  ).toThrow();
+  expect(() => new Parser(tokenize(providerWithWorkspace)).parse()).toThrow();
+  expect(() => new Parser(tokenize(providerWithoutModel)).parse()).toThrow();
+});
+
+test("should throw SemanticError on duplicate declarations, unknown providers, or unused providers", () => {
+  const unknownProviderRef = `
+    agent Reviewer {
+      provider: NonExistentProvider
+      model: "llama-3.3-70b-versatile"
+    }
+  `;
+
+  const unusedProvider = `
+    provider UnusedGroq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+
+    flow Main() {}
+  `;
+
+  const duplicateIdentifier = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+
+    agent Groq {
+      provider: Groq
+      model: "llama-3.3-70b-versatile"
+    }
+  `;
+
+  expect(() => new Parser(tokenize(unknownProviderRef)).parse()).toThrow();
+  expect(() => new Parser(tokenize(unusedProvider)).parse()).toThrow();
+  expect(() => new Parser(tokenize(duplicateIdentifier)).parse()).toThrow();
+});

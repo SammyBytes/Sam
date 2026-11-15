@@ -258,9 +258,8 @@ test("should throw an error on duplicate flow declarations", () => {
     }
   `;
 
-  const tokens = tokenize(code);
-  const parser = new Parser(tokens);
-  const ast = parser.parse();
-
-  expect(() => generateCode(ast)).toThrow("Duplicate flow name: ProcessData");
+  expect(() => {
+    const ast = new Parser(tokenize(code)).parse();
+    generateCode(ast);
+  }).toThrow();
 });

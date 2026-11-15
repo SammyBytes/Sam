@@ -31,10 +31,7 @@ export function parseAgent(context: IParserContext): AgentNode {
   const propertiesNameSet = new Set<string>();
 
   while (!context.isAtEnd() && context.peek().type !== "RBRACE") {
-    const propertyNameToken = context.consume(
-      "IDENTIFIER",
-      "Expected property name",
-    );
+   const propertyNameToken = consumeAgentPropertyName(context);
 
     if (propertiesNameSet.has(propertyNameToken.value)) {
       throw new Error(
@@ -218,4 +215,14 @@ function validateNumber(value: AgentPropertyType, token: Token): void {
       `ValidationError in agent '${token.value}' (line ${token.line}): Expected a numeric value.`,
     );
   }
+}
+
+function consumeAgentPropertyName(context: IParserContext): Token {
+  const token = context.peek();
+  if (token.type === "IDENTIFIER" || token.type === "PROVIDER") {
+    return context.advance();
+  }
+  throw new Error(
+    `SyntaxError: Expected property name at line ${token.line}, column ${token.column}`,
+  );
 }

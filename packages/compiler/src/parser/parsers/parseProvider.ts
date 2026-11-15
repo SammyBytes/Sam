@@ -145,10 +145,9 @@ function validateProviderProperties(
     }
 
     if (
-      property.name === "api_key" ||
-      (property.name === "base_url" &&
-        property.value.type !== "StringLiteral" &&
-        property.value.type !== "EnvLiteral")
+      (property.name === "api_key" || property.name === "base_url") &&
+      property.value.type !== "StringLiteral" &&
+      property.value.type !== "EnvLiteral"
     ) {
       throw new Error(
         `SyntaxError: Invalid value for '${property.name}' in provider '${providerName.value}' at line ${providerName.line}, column ${providerName.column}. Expected a string literal or an environment variable.`,
