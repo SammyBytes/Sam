@@ -108,8 +108,23 @@ jobs:
       - name: Run Sam review
         if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
         run: |
-          ./dist/sam run ci/sam/pr-review.sb < "$RUNNER_TEMP/review-input.txt" > "$RUNNER_TEMP/review.json"
-          cat "$RUNNER_TEMP/review.json"
+          attempt=1
+          max_attempts=3
+          while [ "$attempt" -le "$max_attempts" ]; do
+            echo "Sam review attempt $attempt of $max_attempts"
+            if ./dist/sam run ci/sam/pr-review.sb \
+              < "$RUNNER_TEMP/review-input.txt" \
+              > "$RUNNER_TEMP/review-attempt.json"; then
+              mv "$RUNNER_TEMP/review-attempt.json" "$RUNNER_TEMP/review.json"
+              cat "$RUNNER_TEMP/review.json"
+              exit 0
+            fi
+            echo "::warning title=Sam review attempt failed::Attempt $attempt failed; retrying."
+            attempt=$((attempt + 1))
+            sleep 5
+          done
+          echo "::error title=Sam review failed::The review flow did not return a valid result after $max_attempts attempts."
+          exit 1
 
       - name: Validate review schema
         if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
