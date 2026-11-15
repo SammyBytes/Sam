@@ -494,7 +494,7 @@ The test suite covers the compiler frontend, code generation, entry resolution, 
 
 [`.github/workflows/provider-e2e.yml`](./.github/workflows/provider-e2e.yml) runs a real Groq request through the standalone binary on every push and pull request. The job executes [`examples/provider-groq-ci.sb`](./examples/provider-groq-ci.sb), which chains two agents with a template literal, and separately verifies that invalid credentials produce `PROVIDER_HTTP_ERROR` and exit code `1`.
 
-The workflow reads `GROQ_API_KEY` from repository secrets and uses `llama-3.1-8b-instant` with `temperature: 0` to keep consumption low. For forks and repositories without the secret, the live steps are skipped with a workflow notice; the regular deterministic suite in `ci.yml` still runs.
+The workflow reads `GROQ_API_KEY` from repository secrets and uses `openai/gpt-oss-20b` with `temperature: 0` to keep consumption low. For forks and repositories without the secret, the live steps are skipped with a workflow notice; the regular deterministic suite in `ci.yml` still runs.
 
 Pushing a `v*` tag triggers the release workflow, which builds Linux, macOS, and Windows binaries and attaches them to the GitHub Release.
 
