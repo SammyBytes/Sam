@@ -1,11 +1,15 @@
-import type { AgentError } from "../../errors";
-import { err, ok, type Result } from "../../result";
-import type { AgentConfig } from "./agentConfig";
-import { z } from "zod";
-import { MockStrategy } from "../../strategies/agent/mockStrategy";
-import type { IAgentStrategy } from "../../strategies/agent/agentStrategy";
-import { agentExecute } from "../processExecutor";
-import { OpenCodeStrategy } from "../../strategies/agent/opencodeStrategy";
+import type z from "zod";
+import type { AgentError } from "../errors";
+import { Result, err, ok } from "../result";
+import type { IAgentStrategy } from "../strategies/agent/agentStrategy";
+import { MockStrategy } from "../strategies/agent/mockStrategy";
+import { OpenCodeStrategy } from "../strategies/agent/opencodeStrategy";
+import type { AgentConfig, LocalAgentConfig } from "./agents/agentConfig";
+import { agentExecute } from "./processExecutor";
+import type { IProviderStrategy } from "../strategies/provider/providerStrategy";
+import { OpenAICompatibleStrategy } from "../strategies/provider/openaiCompatibleStrategy";
+import type { ProviderConfig } from "./provider/providerConfig";
+import { providerExecute } from "./httpExecutor";
 
 export type Runtime = {
   use: <TSchema>(
@@ -24,8 +28,12 @@ const strategyRegistry = new Map<string, IAgentStrategy>([
   ["opencode", new OpenCodeStrategy()],
 ]);
 
+const providerStrategyRegistry = new Map<string, IProviderStrategy>([
+  ["openai-compatible", new OpenAICompatibleStrategy()],
+]);
+
 async function executeRunner(
-  agent: AgentConfig,
+  agent: LocalAgentConfig,
   inputPrompt: string,
   schema?: z.ZodTypeAny,
 ): Promise<Result<string, AgentError>> {
@@ -45,11 +53,46 @@ async function executeRunner(
   return agentExecute(agent, binary, args);
 }
 
-export function createRuntime(agents: AgentConfig[]): Runtime {
-  const agentMap = new Map<string, AgentConfig>();
-  for (const agent of agents) {
-    agentMap.set(agent.name, agent);
+async function executeAgent(
+  agent: AgentConfig,
+  providerMap: Map<string, ProviderConfig>,
+  inputPrompt: string,
+  schema?: z.ZodTypeAny,
+): Promise<Result<string, AgentError>> {
+  if ("runner" in agent) {
+    return executeRunner(agent, inputPrompt, schema);
   }
+
+  const provider = providerMap.get(agent.provider);
+  if (!provider) {
+    return err({
+      code: "PROVIDER_NOT_FOUND",
+      agentName: agent.name,
+      providerName: agent.provider,
+      message: `Provider '${agent.provider}' referenced by agent '${agent.name}' was not found.`,
+    });
+  }
+
+  const strategy = providerStrategyRegistry.get(provider.protocol);
+  if (!strategy) {
+    return err({
+      code: "PROVIDER_NOT_SUPPORTED",
+      agentName: agent.name,
+      protocol: provider.protocol,
+      message: `Protocol '${provider.protocol}' is not supported.`,
+    });
+  }
+
+  const spec = strategy.buildRequest(provider, agent, inputPrompt, schema);
+  return providerExecute(provider, agent, strategy, spec);
+}
+
+export function createRuntime(
+  agents: AgentConfig[],
+  providers: ProviderConfig[],
+): Runtime {
+  const agentMap = new Map(agents.map((a) => [a.name, a]));
+  const providerMap = new Map(providers.map((p) => [p.name, p]));
 
   return {
     async use<TSchema>(
@@ -66,7 +109,12 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
         });
       }
 
-      const result = await executeRunner(agent, inputPrompt, schema);
+      const result = await executeAgent(
+        agent,
+        providerMap,
+        inputPrompt,
+        schema,
+      );
       if (!result.ok) {
         return result;
       }
@@ -114,7 +162,7 @@ export function createRuntime(agents: AgentConfig[]): Runtime {
         });
       }
 
-      return executeRunner(agent, inputPrompt);
+      return executeAgent(agent, providerMap, inputPrompt);
     },
   };
 }
