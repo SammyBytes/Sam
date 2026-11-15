@@ -641,3 +641,83 @@ test("should throw SemanticError on duplicate declarations, unknown providers, o
   expect(() => new Parser(tokenize(unusedProvider)).parse()).toThrow();
   expect(() => new Parser(tokenize(duplicateIdentifier)).parse()).toThrow();
 });
+
+test("should parse provider strict_schema and agent max_tokens and retries", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+      strict_schema: true
+    }
+
+    agent Reviewer {
+      provider: Groq
+      model: "openai/gpt-oss-20b"
+      max_tokens: 2048
+      retries: 3
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const provider = ast.body[0];
+  const agent = ast.body[1];
+
+  if (provider?.type === "ProviderDeclaration") {
+    expect(provider.properties).toContainEqual({
+      type: "ProviderProperty",
+      name: "strict_schema",
+      value: { type: "BooleanLiteral", value: true },
+    });
+  } else {
+    throw new Error("Expected a provider declaration");
+  }
+
+  if (agent?.type === "AgentDeclaration") {
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "max_tokens",
+      value: { type: "NumberLiteral", value: 2048 },
+    });
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "retries",
+      value: { type: "NumberLiteral", value: 3 },
+    });
+  } else {
+    throw new Error("Expected an agent declaration");
+  }
+});
+
+test("should reject invalid max_tokens and retries values", () => {
+  const invalidCases = [
+    `agent A { provider: Groq, model: "m", max_tokens: 0 }`,
+    `agent A { provider: Groq, model: "m", max_tokens: 1.5 }`,
+    `agent A { provider: Groq, model: "m", retries: -1 }`,
+    `agent A { provider: Groq, model: "m", retries: 2.5 }`,
+  ];
+
+  for (const agentCode of invalidCases) {
+    const code = `
+      provider Groq {
+        protocol: "openai-compatible"
+        base_url: "https://api.groq.com/openai/v1"
+      }
+      ${agentCode}
+    `;
+    expect(() => new Parser(tokenize(code)).parse()).toThrow();
+  }
+});
+
+test("should reject a non-boolean strict_schema provider property", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+      strict_schema: "yes"
+    }
+  `;
+
+  expect(() => new Parser(tokenize(code)).parse()).toThrow(
+    /strict_schema/,
+  );
+});

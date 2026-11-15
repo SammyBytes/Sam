@@ -18,6 +18,8 @@ const AGENT_PROPERTY_VALIDATORS: Record<string, AgentPropertyValidator> = {
   system_prompt_file: validateString,
   timeout: validateNumber,
   temperature: validateNumber,
+  max_tokens: validatePositiveInteger,
+  retries: validateNonNegativeInteger,
 };
 
 export function parseAgent(context: IParserContext): AgentNode {
@@ -221,6 +223,36 @@ function validateNumber(value: AgentPropertyType, token: Token): void {
   if (value.type !== "NumberLiteral") {
     throw new Error(
       `ValidationError in agent '${token.value}' (line ${token.line}): Expected a numeric value.`,
+    );
+  }
+}
+
+function validatePositiveInteger(
+  value: AgentPropertyType,
+  token: Token,
+): void {
+  if (
+    value.type !== "NumberLiteral" ||
+    !Number.isInteger(value.value) ||
+    value.value <= 0
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a positive integer value.`,
+    );
+  }
+}
+
+function validateNonNegativeInteger(
+  value: AgentPropertyType,
+  token: Token,
+): void {
+  if (
+    value.type !== "NumberLiteral" ||
+    !Number.isInteger(value.value) ||
+    value.value < 0
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a non-negative integer value.`,
     );
   }
 }

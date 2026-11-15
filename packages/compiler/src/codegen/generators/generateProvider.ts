@@ -9,6 +9,7 @@ export function generateProvider(providerNode: ProviderNode): string {
   const protocolProp = props.get("protocol");
   const baseUrlProp = props.get("base_url");
   const apiKeyProp = props.get("api_key");
+  const strictSchemaProp = props.get("strict_schema");
 
   const configFields: string[] = [
     `name: ${JSON.stringify(providerNode.name)}`,
@@ -16,9 +17,12 @@ export function generateProvider(providerNode: ProviderNode): string {
     `baseUrl: ${formatStringOrEnv(baseUrlProp!.value)}`,
   ];
 
- if (apiKeyProp) {
-  configFields.push(`apiKey: ${formatStringOrEnv(apiKeyProp.value)}`);
-}
+  if (apiKeyProp) {
+    configFields.push(`apiKey: ${formatStringOrEnv(apiKeyProp.value)}`);
+  }
+  if (strictSchemaProp && strictSchemaProp.value.type === "BooleanLiteral") {
+    configFields.push(`strictSchema: ${strictSchemaProp.value.value}`);
+  }
 
   return `{ ${configFields.join(", ")} }`;
 }

@@ -109,7 +109,7 @@ function validateProviderProperties(
   providerName: Token,
   properties: ProviderPropertyNode[],
 ): void {
-  const allowedProperties = new Set(["protocol", "base_url", "api_key"]);
+  const allowedProperties = new Set(["protocol", "base_url", "api_key", "strict_schema"]);
   const presentProperties = new Set<string>();
 
   for (const property of properties) {
@@ -142,6 +142,15 @@ function validateProviderProperties(
           ).join(", ")}`,
         );
       }
+    }
+
+    if (
+      property.name === "strict_schema" &&
+      property.value.type !== "BooleanLiteral"
+    ) {
+      throw new Error(
+        `SyntaxError: Invalid value for 'strict_schema' in provider '${providerName.value}' at line ${providerName.line}, column ${providerName.column}. Expected true or false.`,
+      );
     }
 
     if (
