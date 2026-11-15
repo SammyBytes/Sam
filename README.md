@@ -1,6 +1,6 @@
 # Sam (`.sb`)
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/SammyBytes/Sam/releases)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/SammyBytes/Sam/releases)
 [![Runtime](https://img.shields.io/badge/runtime-Bun-000000.svg?logo=bun&logoColor=white)](https://bun.sh)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE-MIT)
 
@@ -10,10 +10,11 @@ Sam is a declarative DSL for orchestrating AI agents with schema-validated outpu
 
 ## Overview
 
-Sam treats agent orchestration as a language problem, not a shell-script problem. A `.sb` program describes three things explicitly:
+Sam treats agent orchestration as a language problem, not a shell-script problem. A `.sb` program describes four things explicitly:
 
+- **Providers** — connection details for OpenAI-compatible HTTP APIs.
 - **Schemas** — strict contracts for the data an agent must return.
-- **Agents** — CLI-backed executors with a runner, workspace, prompt, timeout, and optional model.
+- **Agents** — executors backed by either a local CLI runner or an HTTP provider, with a prompt, timeout, and optional model.
 - **Flows** — typed procedures with variables, conditionals, early returns, and safe or unsafe agent invocation.
 
 The toolchain is built with **Bun**, **TypeScript**, **Citty**, and **Zod**. Programs are parsed into a typed AST, emitted as temporary TypeScript, validated at runtime, and executed through the `@sam-lang/runtime` SDK.
@@ -54,12 +55,59 @@ Each block has one job:
 - **`agent Reviewer`** declares how to run the agent: which runner, which model, which workspace, and an optional system prompt and timeout.
 - **`flow main(diff: string)`** is the entry point. It receives the diff, invokes the agent with `use`, checks the `Result`, and returns the validated object.
 
+## Calling an HTTP provider
+
+Agents can call an OpenAI-compatible API directly instead of spawning a local CLI. Declare a `provider`, point an `agent` at it, and keep the rest of the flow unchanged. Create `review.sb`:
+
+```sb
+provider Groq {
+  protocol: "openai-compatible",
+  base_url: env("GROQ_BASE_URL"),
+  api_key: env("GROQ_API_KEY")
+}
+
+schema CodeReview {
+  approved: boolean,
+  risk_level: string,
+  summary: string
+}
+
+agent Reviewer {
+  provider: Groq,
+  model: env("GROQ_MODEL"),
+  system_prompt: "You are a concise code reviewer. Return the requested JSON.",
+  temperature: 0.2,
+  timeout: 60
+}
+
+flow main(diff: string) {
+  let review = use Reviewer<CodeReview>(diff)
+
+  if (!review.ok) {
+    return review
+  }
+
+  return review.value
+}
+```
+
+Copy the environment template, fill in your key, and run the program:
+
+```bash
+cp .env.example .env
+# Edit .env and set GROQ_API_KEY.
+sam run review.sb "diff --git a/src/auth.ts b/src/auth.ts"
+```
+
+`env("VAR_NAME")` reads from `Bun.env`, and Bun loads `.env` from the current working directory automatically. `.env` is gitignored; use [`.env.example`](./.env.example) as the tracked template.
+
 ## Installation
 
 ### Prerequisites
 
 - [Bun](https://bun.sh/) `>= 1.4.2` when building from source. Prebuilt binaries are self-contained.
 - The `opencode` CLI on your `PATH` when using the `opencode` runner. The `mock` runner requires no external binary.
+- An OpenAI-compatible API key for HTTP provider agents. Local servers such as Ollama do not require one.
 
 ### Install a prebuilt binary (no clone)
 
@@ -150,7 +198,7 @@ mkdir -p ~/.local/bin
 cp dist/sam ~/.local/bin/sam
 
 sam --version
-# 0.4.0
+# 0.5.0
 ```
 
 Add `~/.local/bin` to your `PATH` using the commands shown in the Linux or macOS section above.
@@ -257,9 +305,53 @@ schema SecurityAudit {
 }
 ```
 
+### Provider
+
+Providers describe an OpenAI-compatible HTTP endpoint. Declare the connection once and reference it from one or more agents.
+
+```sb
+provider Groq {
+  protocol: "openai-compatible",
+  base_url: env("GROQ_BASE_URL"),
+  api_key: env("GROQ_API_KEY")
+}
+```
+
+| Property | Required | Type | Description |
+| :------- | :------: | :--- | :---------- |
+| `protocol` | Yes | Identifier or string | Wire protocol. Currently `openai-compatible`. |
+| `base_url` | Yes | String or `env("VAR")` | API base URL. Sam appends `/chat/completions`. |
+| `api_key` | No | String or `env("VAR")` | Sent as `Authorization: Bearer <key>`. Omit for local servers that do not require authentication. |
+
+`base_url` should point at the API root, such as `https://api.groq.com/openai/v1`, not at `/chat/completions`.
+
 ### Agent
 
-Agents declare a runner and its execution environment.
+Agents declare how prompts are executed. An agent uses exactly one execution mode: an HTTP `provider` or a local CLI `runner`. The `provider` and `runner` properties are mutually exclusive.
+
+#### HTTP provider agents
+
+```sb
+agent Reviewer {
+  provider: Groq,
+  model: env("GROQ_MODEL"),
+  system_prompt: "You are a concise code reviewer.",
+  temperature: 0.2,
+  timeout: 60
+}
+```
+
+| Property | Required | Type | Description |
+| :------- | :------: | :--- | :---------- |
+| `provider` | Yes | Identifier | Name of a declared `provider`. |
+| `model` | Yes | String or `env("VAR")` | Model name sent to the provider. |
+| `system_prompt` | No | String or `env("VAR")` | Instructions prepended to every prompt. |
+| `temperature` | No | Number | Sampling temperature sent with the request. |
+| `timeout` | No | Number | Request timeout in seconds. The runtime converts it to milliseconds. |
+
+`workspace` is not used by HTTP provider agents and is rejected if present.
+
+#### Local CLI runner agents
 
 ```sb
 agent ReleaseSummarizer {
@@ -279,11 +371,15 @@ agent ReleaseSummarizer {
 | `model` | No | String or `env("VAR")` | Model passed to the runner. |
 | `timeout` | No | Number | Execution timeout in seconds. The runtime converts it to milliseconds. |
 
-`env("VAR")` resolves through `Bun.env.VAR` at runtime, falling back to an empty string when unset.
+### Environment variables
+
+`env("VAR_NAME")` is supported for provider `base_url` and `api_key`, and for agent `model`, `workspace`, and `system_prompt`. Values resolve through `Bun.env.VAR_NAME` at runtime, falling back to an empty string when unset.
+
+Bun loads `.env` from the current working directory automatically. [`.env.example`](./.env.example) lists common provider variables for Groq, OpenRouter, OpenAI, Ollama, and custom OpenAI-compatible servers.
 
 ### Flows
 
-Flows are typed async procedures. They support `let`, `if` / `else`, early `return`, member access, comparisons, function calls, and agent invocation.
+Flows are typed async procedures. They support `let`, `if` / `else`, early `return`, member access, comparisons, function calls, template literals, and agent invocation.
 
 ```sb
 private flow EvaluateSeverity(findings: number, maxAllowed: number) {
@@ -307,6 +403,28 @@ flow main(targetBranch: string) {
 }
 ```
 
+Agent responses can be passed directly to another agent. Template literals make it easy to combine a validated field with additional context:
+
+```sb
+flow main(input: string) {
+  let draft = use Writer<Draft>(input)
+
+  if (!draft.ok) {
+    return draft
+  }
+
+  let review = use Reviewer<Review>(`Review this draft: ${draft.value.body}`)
+
+  if (!review.ok) {
+    return review
+  }
+
+  return review.value
+}
+```
+
+Template literals support `${expression}` interpolation using identifiers, member access, and flow calls. A template without interpolation is treated as a plain string.
+
 ### Agent invocation
 
 | Syntax | Result |
@@ -325,7 +443,7 @@ Both forms expose `ok`, `value`, and `error`, so flows can branch with `if (!res
 3. Emits TypeScript with `useGlobalRuntime: true`.
 4. Writes the output to `os.tmpdir()/sam-run-<uuid>.ts`.
 5. Injects `z` and `createRuntime` into `globalThis`.
-6. Dynamically imports the module and invokes the entry flow.
+6. Dynamically imports the module and invokes the entry flow. Agent calls either spawn a local runner or send an HTTP request to the configured provider.
 7. Removes the temporary file in a `finally` block.
 
 Because the generated file lives outside the project, it has no dependency on the caller's `node_modules` or working directory. The standalone binary supplies both runtime dependencies.
@@ -338,7 +456,7 @@ The temporary file is always removed, including when the flow returns a failed `
 | :------ | :------------- |
 | [`@sam-lang/cli`](./packages/cli) | Citty command surface: `run`, `compile`, and `ast`. |
 | [`@sam-lang/compiler`](./packages/compiler) | Lexer, parser, AST, codegen, entry resolution, and CLI argument coercion. |
-| [`@sam-lang/runtime`](./packages/runtime) | `createRuntime`, runner strategies, process execution, timeouts, and `Result` values. |
+| [`@sam-lang/runtime`](./packages/runtime) | `createRuntime`, local runner and HTTP provider strategies, process/HTTP execution, timeouts, and `Result` values. |
 
 The compiler is a bootstrap implementation in TypeScript. It will be retired in `v1.0.0` when Sam becomes self-hosted.
 
@@ -351,6 +469,7 @@ The compiler is a bootstrap implementation in TypeScript. It will be retired in 
 │   ├── compiler/     # @sam-lang/compiler — lexer, parser, codegen
 │   └── runtime/      # @sam-lang/runtime — execution SDK
 ├── examples/         # Sample .sb programs
+├── .env.example      # Tracked template for provider credentials
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml      # Linux/macOS/Windows tests and binary smoke tests
@@ -371,12 +490,19 @@ bun run build:bin     # Compile the standalone binary to dist/sam (or dist/sam.e
 
 The test suite covers the compiler frontend, code generation, entry resolution, CLI argument coercion, direct execution, failure exit codes, and ephemeral file cleanup.
 
+### Live provider CI
+
+[`.github/workflows/provider-e2e.yml`](./.github/workflows/provider-e2e.yml) runs a real Groq request through the standalone binary on every push and pull request. The job executes [`examples/provider-groq-ci.sb`](./examples/provider-groq-ci.sb), which chains two agents with a template literal, and separately verifies that invalid credentials produce `PROVIDER_HTTP_ERROR` and exit code `1`.
+
+The workflow reads `GROQ_API_KEY` from repository secrets and uses `llama-3.1-8b-instant` with `temperature: 0` to keep consumption low. For forks and repositories without the secret, the live steps are skipped with a workflow notice; the regular deterministic suite in `ci.yml` still runs.
+
 Pushing a `v*` tag triggers the release workflow, which builds Linux, macOS, and Windows binaries and attaches them to the GitHub Release.
 
 ## Roadmap
 
 - **v0.4.0 — Direct Execution** *(Done)*: `sam run` with positional arguments and stdin pipelines, smart entry point resolution, standalone compiled binaries for Linux/macOS/Windows, tag-driven releases, and guaranteed temporary-file cleanup.
-- **v0.5.0 — Models & Integrations** *(Next)*: native model provider adapters, richer `model` configuration, webhook triggers, retry policies, and contract validation loops.
+- **v0.5.0 — Providers** *(Done)*: top-level `provider` declarations, OpenAI-compatible HTTP execution, `env()` expansion across provider and agent properties, HTTP `temperature` and `model` enforcement, and full backward compatibility with local `opencode` and `mock` runners.
+- **v0.6.0 — Integrations** *(Next)*: additional provider protocols, richer `model` configuration, webhook triggers, retry policies, and contract validation loops.
 - **v1.0.0 — Self-Hosting** *(Planned)*: a compiler written in Sam itself, retiring `@sam-lang/compiler` and removing the TypeScript bootstrap toolchain.
 
 Earlier releases delivered the lexer, schema parsing and Zod codegen (`v0.1.x`), agent declarations and the runtime split (`v0.2.0`), and flows plus the runtime SDK (`v0.3.0`).
