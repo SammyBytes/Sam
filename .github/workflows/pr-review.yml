@@ -1,0 +1,178 @@
+name: PR Review (Sam)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Sam PR review
+    if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GROQ_BASE_URL: https://api.groq.com/openai/v1
+      GROQ_MODEL: openai/gpt-oss-20b
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Skip review when GROQ_API_KEY is not configured
+        if: env.GROQ_API_KEY == ''
+        run: |
+          echo "::notice title=Sam PR review skipped::Add the GROQ_API_KEY repository secret (or run from a branch in this repository, not a fork) to enable AI review."
+
+      - name: Install dependencies
+        if: env.GROQ_API_KEY != ''
+        run: bun install --frozen-lockfile
+
+      - name: Compile standalone binary
+        if: env.GROQ_API_KEY != ''
+        run: bun run build:bin
+
+      - name: Build review input
+        if: env.GROQ_API_KEY != ''
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          base="$BASE_SHA"
+          head="$HEAD_SHA"
+          if [ -z "$base" ] || [ -z "$head" ]; then
+            base="$(git merge-base HEAD "origin/$DEFAULT_BRANCH")"
+            head="HEAD"
+          fi
+
+          diff_file="$RUNNER_TEMP/pr.diff"
+          git diff --no-color "$base...$head" > "$diff_file"
+
+          if [ ! -s "$diff_file" ]; then
+            echo "No diff to review."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+          max_chars=60000
+          diff_chars="$(wc -c < "$diff_file" | tr -d ' ')"
+          truncated="false"
+          if [ "$diff_chars" -gt "$max_chars" ]; then
+            truncated="true"
+            head -c "$max_chars" "$diff_file" > "$diff_file.truncated"
+            mv "$diff_file.truncated" "$diff_file"
+          fi
+          echo "truncated=$truncated" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "Pull request #$PR_NUMBER"
+            echo "Title: $PR_TITLE"
+            echo
+            echo "Description:"
+            printf '%s\n' "$PR_BODY"
+            echo
+            echo "Changed files:"
+            git diff --stat "$base...$head"
+            echo
+            if [ "$truncated" = "true" ]; then
+              echo "NOTE: the diff was truncated to the first $max_chars bytes."
+              echo
+            fi
+            echo "Diff:"
+            cat "$diff_file"
+          } > "$RUNNER_TEMP/review-input.txt"
+        id: input
+
+      - name: Run Sam review
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
+        run: |
+          ./dist/sam run ci/sam/pr-review.sb < "$RUNNER_TEMP/review-input.txt" > "$RUNNER_TEMP/review.json"
+          cat "$RUNNER_TEMP/review.json"
+
+      - name: Validate review schema
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
+        run: |
+          jq -e '
+            (.verdict | type == "string" and IN("approve", "comment", "request_changes")) and
+            (.risk | type == "string" and IN("low", "medium", "high")) and
+            (.summary | type == "string" and length > 0) and
+            (.findings | type == "string") and
+            (.suggested_tests | type == "string")
+          ' "$RUNNER_TEMP/review.json" > /dev/null
+          echo "Review output matches the expected schema."
+
+      - name: Render comment
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
+        run: |
+          file="$RUNNER_TEMP/review.json"
+          {
+            echo '<!-- sam-pr-review -->'
+            echo '## Sam PR Review'
+            echo
+            echo "**Verdict:** \`$(jq -r '.verdict' "$file")\` · **Risk:** \`$(jq -r '.risk' "$file")\`"
+            echo
+            jq -r '.summary' "$file"
+            echo
+            findings="$(jq -r '.findings // ""' "$file")"
+            if [ -n "$findings" ]; then
+              echo '### Findings'
+              echo
+              echo "$findings"
+              echo
+            fi
+            tests="$(jq -r '.suggested_tests // ""' "$file")"
+            if [ -n "$tests" ]; then
+              echo '### Suggested tests'
+              echo
+              echo "$tests"
+              echo
+            fi
+            echo '<sub>Advisory review generated by Sam with Groq. It does not approve or block the pull request; `ci.yml` remains the required check.</sub>'
+          } > "$RUNNER_TEMP/comment.md"
+
+      - name: Post or update review comment
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true' && env.PR_NUMBER != ''
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          repo="$REPO"
+          marker='<!-- sam-pr-review -->'
+          existing="$(gh api --paginate "repos/$repo/issues/$PR_NUMBER/comments" \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"$marker\"))) | .id" \
+            | head -n 1)"
+
+          jq -n --rawfile body "$RUNNER_TEMP/comment.md" '{body: $body}' > "$RUNNER_TEMP/comment.json"
+
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$repo/issues/comments/$existing" --input "$RUNNER_TEMP/comment.json" > /dev/null
+            echo "Updated review comment $existing."
+          else
+            gh api -X POST "repos/$repo/issues/$PR_NUMBER/comments" --input "$RUNNER_TEMP/comment.json" > /dev/null
+            echo "Created review comment."
+          fi
+
+      - name: Write job summary
+        if: env.GROQ_API_KEY != '' && steps.input.outputs.skip != 'true'
+        run: cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
