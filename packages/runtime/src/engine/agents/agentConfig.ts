@@ -1,4 +1,4 @@
-import type { AgentRunnerKind, ProviderProtocolKind } from "../types";
+import type { AgentRunnerKind, ProviderProtocolKind } from "../../types";
 
 export type LocalAgentConfig = {
   name: string;

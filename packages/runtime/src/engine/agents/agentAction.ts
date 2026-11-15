@@ -1,11 +1,11 @@
-import type { AgentError } from "../errors";
-import { err, ok, type Result } from "../result";
+import type { AgentError } from "../../errors";
+import { err, ok, type Result } from "../../result";
 import type { AgentConfig } from "./agentConfig";
 import { z } from "zod";
-import { MockStrategy } from "../strategies/agent/mockStrategy";
-import type { IAgentStrategy } from "../strategies/agent/agentStrategy";
-import { agentExecute } from "./processExecutor";
-import { OpenCodeStrategy } from "../strategies/agent/opencodeStrategy";
+import { MockStrategy } from "../../strategies/agent/mockStrategy";
+import type { IAgentStrategy } from "../../strategies/agent/agentStrategy";
+import { agentExecute } from "../processExecutor";
+import { OpenCodeStrategy } from "../../strategies/agent/opencodeStrategy";
 
 export type Runtime = {
   use: <TSchema>(
