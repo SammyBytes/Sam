@@ -1,7 +1,8 @@
-import type { Token, TokenType } from "../lexer";
+import type { Token, TokenType } from "../lexer/tokens";
 import type { ASTNode, ProgramNode } from "./ast";
 import { parseAgent } from "./parsers/parseAgent";
 import { parseFlow } from "./parsers/parseFlow";
+import { parseProvider } from "./parsers/parseProvider";
 import { parseSchema } from "./parsers/parseSchema";
 import type { IParserContext } from "./types";
 
@@ -67,6 +68,9 @@ export class Parser implements IParserContext {
         case "FLOW":
         case "PRIVATE":
           body.push(parseFlow(this));
+          break;
+        case "PROVIDER":
+          body.push(parseProvider(this));
           break;
         default:
           throw new Error(
