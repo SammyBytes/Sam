@@ -7,19 +7,6 @@ export function getPropertyValue(
   return prop.value.value;
 }
 
-function formatStringOrEnv(prop: AgentPropertyNode): string {
-  if (prop.value.type === "EnvLiteral") {
-    const varName = String(prop.value.value);
-    if (!/^[A-Z_][A-Z0-9_]*$/i.test(varName)) {
-      throw new Error(
-        `CodegenError: Invalid environment variable name '${varName}'`,
-      );
-    }
-    return `Bun.env.${varName} ?? ""`;
-  }
-
-  return JSON.stringify(prop.value.value);
-}
 
 export function generateAgent(agentNode: AgentNode): string {
   const props = new Map(agentNode.properties.map((prop) => [prop.name, prop]));
@@ -64,3 +51,7 @@ export function generateAgent(agentNode: AgentNode): string {
 
   return `{ ${configFields.join(", ")} }`;
 }
+function formatStringOrEnv(workspaceProp: AgentPropertyNode) {
+  throw new Error("Function not implemented.");
+}
+
