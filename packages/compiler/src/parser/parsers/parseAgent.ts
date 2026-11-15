@@ -1,6 +1,24 @@
 import { AgentRunner, type AgentRunnerKind } from "@sam-lang/runtime";
 import type { AgentNode, AgentPropertyNode, AgentPropertyType } from "../ast";
 import type { IParserContext } from "../types";
+import type { Token } from "../../lexer/tokens";
+
+type AgentPropertyValidator = (
+  value: AgentPropertyType,
+  agentToken: Token,
+) => void;
+
+const AGENT_PROPERTY_VALIDATORS: Record<string, AgentPropertyValidator> = {
+  name: validateString,
+  provider: validateProviderRef,
+  runner: validateRunnerKind,
+  model: validateString,
+  workspace: validateString,
+  system_prompt: validateString,
+  system_prompt_file: validateString,
+  timeout: validateNumber,
+  temperature: validateNumber,
+};
 
 export function parseAgent(context: IParserContext): AgentNode {
   context.consume("AGENT", "Expected 'agent' keyword");
@@ -28,44 +46,7 @@ export function parseAgent(context: IParserContext): AgentNode {
 
     context.consume("COLON", "Expected ':' after property name");
 
-    const valueToken = context.peek();
-    let value: AgentPropertyType;
-
-    switch (valueToken.type) {
-      case "STRING":
-        value = { type: "StringLiteral", value: valueToken.value };
-        context.advance(); // Consume the string token
-        break;
-      case "NUMBER":
-        value = { type: "NumberLiteral", value: parseFloat(valueToken.value) };
-        context.advance(); // Consume the number token
-        break;
-      case "BOOLEAN":
-        value = { type: "BooleanLiteral", value: valueToken.value === "true" };
-        context.advance(); // Consume the boolean token
-        break;
-      case "IDENTIFIER":
-        value = parseAgentKind(valueToken.value);
-        context.advance(); // Consume the identifier token
-        break;
-      case "ENV":
-        context.advance(); // Consume the 'ENV' token
-        context.consume("LPAREN", "Expected '(' after 'env'");
-        const envVarToken = context.consume(
-          "STRING",
-          "Expected environment variable name inside 'env()'",
-        );
-        context.consume(
-          "RPAREN",
-          "Expected ')' after environment variable name",
-        );
-        value = { type: "EnvLiteral", value: envVarToken.value };
-        break;
-      default:
-        throw new Error(
-          `SyntaxError: Unexpected token '${valueToken.value}' at line ${valueToken.line}, column ${valueToken.column}. Expected a value for property '${propertyNameToken.value}'.`,
-        );
-    }
+    const value = parseAgentPropertyValue(context, propertyNameToken.value);
 
     properties.push({
       type: "AgentProperty",
@@ -81,7 +62,7 @@ export function parseAgent(context: IParserContext): AgentNode {
   context.consume("RBRACE", "Expected '}' after agent properties");
 
   // Validate required properties
-  validateAgentProperties(nameToken.value, propertiesNameSet);
+  validateAgentProperties(nameToken, properties);
 
   return {
     type: "AgentDeclaration",
@@ -90,36 +71,151 @@ export function parseAgent(context: IParserContext): AgentNode {
   };
 }
 
-function parseAgentKind(value: string): AgentPropertyType {
-  const isValidKind = Object.values(AgentRunner).includes(
-    value as AgentRunnerKind,
-  );
-  if (!isValidKind) {
-    throw new Error(
-      `SyntaxError: Invalid agent runner kind '${value}'. Expected one of: ${Object.values(
-        AgentRunner,
-      ).join(", ")}`,
-    );
+// --- Parsing logic for agent property values ---
+function parseAgentPropertyValue(
+  context: IParserContext,
+  propertyName: string,
+): AgentPropertyType {
+  const valueToken = context.peek();
+
+  switch (valueToken.type) {
+    case "STRING":
+      context.advance();
+      return { type: "StringLiteral", value: valueToken.value };
+    case "NUMBER":
+      context.advance();
+      return { type: "NumberLiteral", value: parseFloat(valueToken.value) };
+    case "BOOLEAN":
+      context.advance();
+      return { type: "BooleanLiteral", value: valueToken.value === "true" };
+    case "IDENTIFIER":
+      context.advance();
+      // Save the free Identifier; the validator checks if it's runner or provider
+      return { type: "Identifier", value: valueToken.value };
+    case "ENV": {
+      context.advance();
+      context.consume("LPAREN", "Expected '(' after 'env'");
+      const envVarToken = context.consume(
+        "STRING",
+        "Expected environment variable name inside 'env()'",
+      );
+      context.consume("RPAREN", "Expected ')' after environment variable name");
+      return { type: "EnvLiteral", value: envVarToken.value };
+    }
+    default:
+      throw new Error(
+        `SyntaxError: Unexpected token '${valueToken.value}' at line ${valueToken.line}, column ${valueToken.column} for property '${propertyName}'.`,
+      );
   }
-  return { type: "Identifier", value: value as AgentRunnerKind };
 }
 
-function validateAgentProperties(agentName: string, keys: Set<string>) {
-  if (!keys.has("runner")) {
+// --- Orchestration and validation logic for agent properties ---
+function validateAgentProperties(
+  agentToken: Token,
+  properties: AgentPropertyNode[],
+): void {
+  const present = new Set<string>();
+
+  for (const prop of properties) {
+    const validator = AGENT_PROPERTY_VALIDATORS[prop.name];
+
+    if (!validator) {
+      throw new Error(
+        `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): Unknown property '${prop.name}'.`,
+      );
+    }
+
+    validator(prop.value, agentToken);
+    present.add(prop.name);
+  }
+
+  validateExecutionTarget(agentToken, present);
+  validatePromptExclusivity(agentToken, present);
+}
+
+// --- Business logic validators for specific properties ---
+function validateExecutionTarget(
+  agentToken: Token,
+  present: Set<string>,
+): void {
+  const hasProvider = present.has("provider");
+  const hasRunner = present.has("runner");
+
+  if (hasProvider && hasRunner) {
     throw new Error(
-      `ValidationError in agent '${agentName}': Missing required property 'runner'`,
+      `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): 'provider' and 'runner' are mutually exclusive.`,
     );
   }
 
-  if (!keys.has("workspace")) {
+  if (!hasProvider && !hasRunner) {
     throw new Error(
-      `ValidationError in agent '${agentName}': Missing required property 'workspace'`,
+      `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): Agent must specify either 'provider' or 'runner'.`,
     );
   }
 
-  if (keys.has("system_prompt") && keys.has("system_prompt_file")) {
+  if (hasProvider) {
+    if (present.has("workspace")) {
+      throw new Error(
+        `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): 'workspace' is not allowed when using an HTTP 'provider'.`,
+      );
+    }
+    if (!present.has("model")) {
+      throw new Error(
+        `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): 'model' is required when using a 'provider'.`,
+      );
+    }
+  }
+
+  if (hasRunner && !present.has("workspace")) {
     throw new Error(
-      `ValidationError in agent '${agentName}': 'system_prompt' and 'system_prompt_file' are mutually exclusive`,
+      `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): Missing required property 'workspace' for local runner.`,
+    );
+  }
+}
+
+function validatePromptExclusivity(
+  agentToken: Token,
+  present: Set<string>,
+): void {
+  if (present.has("system_prompt") && present.has("system_prompt_file")) {
+    throw new Error(
+      `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): 'system_prompt' and 'system_prompt_file' are mutually exclusive.`,
+    );
+  }
+}
+
+// --- Type-specific validators ---
+function validateRunnerKind(value: AgentPropertyType, token: Token): void {
+  if (
+    value.type !== "Identifier" ||
+    !Object.values(AgentRunner).includes(value.value as AgentRunnerKind)
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Invalid 'runner'. Expected one of: ${Object.values(AgentRunner).join(", ")}`,
+    );
+  }
+}
+
+function validateProviderRef(value: AgentPropertyType, token: Token): void {
+  if (value.type !== "Identifier") {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): 'provider' must be an identifier referencing a declared provider (e.g., provider: Groq).`,
+    );
+  }
+}
+
+function validateString(value: AgentPropertyType, token: Token): void {
+  if (value.type !== "StringLiteral") {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a string value.`,
+    );
+  }
+}
+
+function validateNumber(value: AgentPropertyType, token: Token): void {
+  if (value.type !== "NumberLiteral") {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a numeric value.`,
     );
   }
 }
