@@ -12,7 +12,7 @@ let lastCapturedRequest: {
 
 beforeAll(() => {
   server = Bun.serve({
-    port: 0, // Asigna un puerto libre automáticamente
+    port: 0, // Automatically assign an available port
     async fetch(req) {
       const url = new URL(req.url);
 
@@ -29,7 +29,7 @@ beforeAll(() => {
 
       const model = body.model as string;
 
-      // Simular error HTTP 401
+      // Simulate HTTP 401 error
       if (model === "trigger-401") {
         return new Response(
           JSON.stringify({ error: { message: "Invalid API key" } }),
@@ -37,7 +37,7 @@ beforeAll(() => {
         );
       }
 
-      // Simular respuesta lenta para probar timeout
+      // Simulate slow response to test timeout handling
       if (model === "trigger-timeout") {
         await Bun.sleep(150);
         return Response.json({
@@ -45,7 +45,7 @@ beforeAll(() => {
         });
       }
 
-      // Simular respuesta con markdown fences para probar limpieza de JSON
+      // Simulate markdown-wrapped JSON response to test sanitization
       if (model === "trigger-markdown-json") {
         return Response.json({
           choices: [
@@ -58,7 +58,7 @@ beforeAll(() => {
         });
       }
 
-      // Respuesta estructurada estándar cuando se pide json_object
+      // Standard structured response when json_object format is requested
       if (
         body.response_format &&
         typeof body.response_format === "object" &&
@@ -75,7 +75,7 @@ beforeAll(() => {
         });
       }
 
-      // Respuesta de texto plano para useUnsafe
+      // Plain text response for useUnsafe
       return Response.json({
         choices: [
           {
@@ -133,7 +133,7 @@ describe("HTTP Provider Runtime Execution", () => {
       expect(result.value).toEqual({ approved: false, score: 42 });
     }
 
-    // Verificar contrato HTTP enviado al servidor
+    // Verify the HTTP request payload and headers sent to the server
     expect(lastCapturedRequest).not.toBeNull();
     expect(lastCapturedRequest?.authorization).toBe("Bearer sk-test-secret");
     expect(lastCapturedRequest?.body.model).toBe("gpt-4o-mini");
@@ -250,7 +250,7 @@ describe("HTTP Provider Runtime Execution", () => {
           name: "SlowAgent",
           provider: "MockOpenAI",
           model: "trigger-timeout",
-          timeout: 30, // 30ms < 150ms del servidor
+          timeout: 30, // 30ms < 150ms server delay
         },
       ],
       [
