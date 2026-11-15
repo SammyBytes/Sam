@@ -1,6 +1,6 @@
-import type { AgentRunnerKind } from "../types";
+import type { AgentRunnerKind, ProviderProtocolKind } from "../types";
 
-export type AgentConfig = {
+export type LocalAgentConfig = {
   name: string;
   runner: AgentRunnerKind;
   workspace: string;
@@ -8,3 +8,15 @@ export type AgentConfig = {
   model?: string;
   timeout?: number;
 };
+
+export type ProviderAgentConfig = {
+  name: string;
+  provider: string;
+  model: string;
+  systemPrompt?: string;
+  timeout?: number;
+  temperature?: number;
+  maxTokens?: number;
+};
+
+export type AgentConfig = LocalAgentConfig | ProviderAgentConfig;

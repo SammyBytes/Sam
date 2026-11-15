@@ -5,17 +5,10 @@ export const AgentRunner = {
 
 export type AgentRunnerKind = (typeof AgentRunner)[keyof typeof AgentRunner];
 
-export interface AgentRunnerConfig {
-  name: string;
-  runner: AgentRunnerKind;
-  workspace: string;
-  systemPrompt?: string;
-  timeout?: number;
-}
-
 export const ProviderProtocol = {
   OPENAI: "openai-compatible",
   ANTHROPIC: "anthropic",
 } as const;
 
-export type ProviderProtocolKind = (typeof ProviderProtocol)[keyof typeof ProviderProtocol];
+export type ProviderProtocolKind =
+  (typeof ProviderProtocol)[keyof typeof ProviderProtocol];
