@@ -468,12 +468,15 @@ The compiler is a bootstrap implementation in TypeScript. It will be retired in 
 │   ├── cli/          # @sam-lang/cli — Citty commands
 │   ├── compiler/     # @sam-lang/compiler — lexer, parser, codegen
 │   └── runtime/      # @sam-lang/runtime — execution SDK
+├── ci/
+│   └── sam/          # Sam flows that automate this repository
 ├── examples/         # Sample .sb programs
 ├── .env.example      # Tracked template for provider credentials
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml      # Linux/macOS/Windows tests and binary smoke tests
-│       └── release.yml # Tag-driven cross-platform binary releases
+│       ├── ci.yml         # Linux/macOS/Windows tests, binary and flow checks
+│       ├── pr-review.yml  # Advisory Sam review for pull requests
+│       └── release.yml    # Tag-driven cross-platform binary releases
 ├── package.json      # Bun workspace root
 └── bun.lock
 ```
@@ -490,11 +493,15 @@ bun run build:bin     # Compile the standalone binary to dist/sam (or dist/sam.e
 
 The test suite covers the compiler frontend, code generation, entry resolution, CLI argument coercion, direct execution, failure exit codes, and ephemeral file cleanup.
 
-### Live provider CI
+### Internal automation
 
-[`.github/workflows/provider-e2e.yml`](./.github/workflows/provider-e2e.yml) runs a real Groq request through the standalone binary on every push and pull request. The job executes [`examples/provider-groq-ci.sb`](./examples/provider-groq-ci.sb), which chains two agents with a template literal, and separately verifies that invalid credentials produce `PROVIDER_HTTP_ERROR` and exit code `1`.
+Sam runs its own repository automation from [`ci/sam/`](./ci/sam). The deterministic CI job compiles every flow in that directory, so a compiler regression that breaks the repository's own automation fails the normal test job.
 
-The workflow reads `GROQ_API_KEY` from repository secrets and uses `openai/gpt-oss-20b` with `temperature: 0` to keep consumption low. For forks and repositories without the secret, the live steps are skipped with a workflow notice; the regular deterministic suite in `ci.yml` still runs.
+[`ci/sam/pr-review.sb`](./ci/sam/pr-review.sb) is an advisory pull request reviewer. It asks Groq for a schema-validated verdict, risk level, summary, findings, and suggested tests. [`pr-review.yml`](./.github/workflows/pr-review.yml) passes the PR description and a truncated diff to the flow, validates the JSON with `jq`, and creates or updates a single marked comment on the PR.
+
+The workflow reads `GROQ_API_KEY` from repository secrets and uses `openai/gpt-oss-20b` with `temperature: 0`. For drafts, forks, and repositories without the secret, the review is skipped with a workflow notice. The review is advisory: it never approves, merges, or blocks a pull request. `ci.yml` remains the required check.
+
+The diff is treated as untrusted data. Pull request metadata is passed to the shell through environment variables instead of direct expression interpolation, the diff is capped at 60,000 bytes, and the workflow runs only on `pull_request` with `contents: read` and `pull-requests: write` permissions.
 
 Pushing a `v*` tag triggers the release workflow, which builds Linux, macOS, and Windows binaries and attaches them to the GitHub Release.
 
