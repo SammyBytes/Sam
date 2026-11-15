@@ -1,6 +1,7 @@
 import type { ProgramNode } from "../parser/ast";
 import { generateFlow } from "./generators/flow/generateFlow";
 import { generateAgent } from "./generators/generateAgent";
+import { generateProvider } from "./generators/generateProvider";
 import { generateSchema } from "./generators/generateSchema";
 
 export interface CodegenOptions {
@@ -11,12 +12,14 @@ export interface CodegenOptions {
 
 export const generateCode = (
   programNode: ProgramNode,
-  options?: CodegenOptions
+  options?: CodegenOptions,
 ): string => {
   const schemas: string[] = [];
   const agents: string[] = [];
+  const providers: string[] = [];
   const flows: string[] = [];
   const flowNames: Set<string> = new Set();
+  const providerNames: Set<string> = new Set();
 
   for (const node of programNode.body) {
     if (node.type === "FlowDeclaration") {
@@ -24,6 +27,13 @@ export const generateCode = (
         throw new Error(`Duplicate flow name: ${node.name}`);
       }
       flowNames.add(node.name);
+    }
+
+    if (node.type === "ProviderDeclaration") {
+      if (providerNames.has(node.name)) {
+        throw new Error(`Duplicate provider name: ${node.name}`);
+      }
+      providerNames.add(node.name);
     }
   }
 
@@ -47,26 +57,41 @@ export const generateCode = (
         break;
       }
 
+      case "ProviderDeclaration": {
+        const providerCode = generateProvider(node);
+        providers.push(providerCode);
+        break;
+      }
+
       default:
         break;
     }
   }
 
-  if (schemas.length === 0 && agents.length === 0 && flows.length === 0) {
+  if (
+    schemas.length === 0 &&
+    agents.length === 0 &&
+    flows.length === 0 &&
+    providers.length === 0
+  ) {
     return "";
   }
 
   const imports: string[] = [];
 
+  // Determine if we need to import zod or runtime based on the presence of schemas, agents, flows, or providers
+  const needsRuntime =
+    agents.length > 0 || flows.length > 0 || providers.length > 0;
+
   if (options?.useGlobalRuntime) {
     if (schemas.length > 0) {
       imports.push(
-        `const { z } = globalThis as unknown as { z: typeof import("zod").z };`
+        `const { z } = globalThis as unknown as { z: typeof import("zod").z };`,
       );
     }
-    if (agents.length > 0 || flows.length > 0) {
+    if (needsRuntime) {
       imports.push(
-        `const { createRuntime } = globalThis as unknown as { createRuntime: typeof import("@sam-lang/runtime").createRuntime };`
+        `const { createRuntime } = globalThis as unknown as { createRuntime: typeof import("@sam-lang/runtime").createRuntime };`,
       );
     }
   } else {
@@ -76,9 +101,9 @@ export const generateCode = (
     if (schemas.length > 0) {
       imports.push(`import { z } from ${JSON.stringify(zodSpecifier)};`);
     }
-    if (agents.length > 0 || flows.length > 0) {
+    if (needsRuntime) {
       imports.push(
-        `import { createRuntime } from ${JSON.stringify(runtimeSpecifier)};`
+        `import { createRuntime } from ${JSON.stringify(runtimeSpecifier)};`,
       );
     }
   }
@@ -93,10 +118,16 @@ export const generateCode = (
     sections.push(schemas.join("\n\n"));
   }
 
-  if (agents.length > 0 || flows.length > 0) {
-    const agentsBody =
-      agents.length > 0 ? `\n  ${agents.join(",\n  ")}\n` : "";
-    sections.push(`const sam = createRuntime([${agentsBody}]);`);
+  if (providers.length > 0) {
+    const providersBody = `\n  ${providers.join(",\n  ")}\n`;
+    sections.push(`const providers = [${providersBody}];`);
+  }
+
+  if (needsRuntime) {
+    const agentsBody = agents.length > 0 ? `\n  ${agents.join(",\n  ")}\n` : "";
+    const runtimeArgs =
+      providers.length > 0 ? `[${agentsBody}], providers` : `[${agentsBody}]`;
+    sections.push(`const sam = createRuntime(${runtimeArgs});`);
   }
 
   if (flows.length > 0) {
