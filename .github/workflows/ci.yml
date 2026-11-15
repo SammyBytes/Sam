@@ -56,6 +56,25 @@ jobs:
           "$BIN" --version
           "$BIN" --help
 
+      - name: Validate Sam automation flows
+        run: |
+          BIN="dist/sam"
+          if [ -f "dist/sam.exe" ]; then
+            BIN="dist/sam.exe"
+          fi
+
+          shopt -s nullglob
+          flows=(ci/sam/*.sb)
+          if [ "${#flows[@]}" -eq 0 ]; then
+            echo "No Sam automation flows to validate."
+            exit 0
+          fi
+
+          for flow in "${flows[@]}"; do
+            echo "Compiling $flow"
+            "$BIN" compile "$flow" > /dev/null
+          done
+
       - name: Smoke test binary portability
         run: |
           BIN="dist/sam"
