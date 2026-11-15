@@ -1,0 +1,5 @@
+# Default owner for every path.
+* @SammyBytes
+
+# CI, release, and repository configuration.
+/.github/ @SammyBytes
