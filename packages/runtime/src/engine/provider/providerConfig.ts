@@ -5,4 +5,5 @@ export type ProviderConfig = {
   protocol: ProviderProtocolKind;
   apiKey?: string;
   baseUrl: string;
+  strictSchema?: boolean;
 };

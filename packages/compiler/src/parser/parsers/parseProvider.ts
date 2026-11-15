@@ -109,7 +109,7 @@ function validateProviderProperties(
   providerName: Token,
   properties: ProviderPropertyNode[],
 ): void {
-  const allowedProperties = new Set(["protocol", "base_url", "api_key"]);
+  const allowedProperties = new Set(["protocol", "base_url", "api_key", "strict_schema"]);
   const presentProperties = new Set<string>();
 
   for (const property of properties) {
