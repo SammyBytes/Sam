@@ -1,6 +1,6 @@
 # @sam-lang/compiler
 
-The **bootstrap TypeScript compiler** for the Sam (`.sb`) DSL, version `0.5.0-rc.1`.
+The **bootstrap TypeScript compiler** for the Sam (`.sb`) DSL, version `0.5.0-rc.2`.
 
 > **Temporary toolchain:** this package is a bootstrap implementation used to
 > develop Sam while the language is young. It will be **deprecated and retired
@@ -42,7 +42,7 @@ Check the CLI version:
 
 ```bash
 bun run sam --version
-# 0.5.0-rc.1
+# 0.5.0-rc.2
 ```
 
 Or import the API programmatically:
@@ -66,7 +66,7 @@ bun test
 
 ## Status
 
-Version `0.5.0-rc.1` is the current bootstrap release candidate. It covers providers, schemas,
+Version `0.5.0-rc.2` is the current bootstrap release candidate. It covers providers, schemas,
 agents, flows, `let` / `if` / `else` / `return`, template literals, safe and
 unsafe agent invocation, `env()` expansion across provider and agent properties,
 HTTP provider agent validation, entry flow resolution, and CLI argument coercion
