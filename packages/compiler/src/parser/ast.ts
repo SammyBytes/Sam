@@ -116,7 +116,7 @@ export type UseExpressionNode = {
 };
 
 //------------------------------------------------------------------
-// Provider Types (v0.4.0)
+// Provider Types (v0.5.0)
 //------------------------------------------------------------------
 
 export type ProviderTypes =

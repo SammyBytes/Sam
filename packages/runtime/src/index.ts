@@ -8,4 +8,4 @@ export * from "./result";
 
 export type { IAgentStrategy } from "./strategies/agent/agentStrategy";
 
-export const VERSION = Bun.env.SAM_VERSION || "0.4.0";
+export const VERSION = Bun.env.SAM_VERSION || "0.5.0";

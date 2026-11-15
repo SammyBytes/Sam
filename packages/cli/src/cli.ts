@@ -4,7 +4,7 @@ import { defineCommand, runMain } from "citty";
 const main = defineCommand({
   meta: {
     name: "sam",
-    version: "0.4.0",
+    version: "0.5.0",
     description: "Sam (.sb) declarative DSL compiler & runtime runner",
   },
   subCommands: {
