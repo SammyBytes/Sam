@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ProviderAgentConfig } from "../../engine/agentConfig";
+import type { ProviderAgentConfig } from "../../engine/agents/agentConfig";
 import type { ProviderConfig } from "../../engine/provider/providerConfig";
 import type { HttpRequestSpec, IProviderStrategy } from "./providerStrategy";
 
