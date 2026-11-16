@@ -85,6 +85,10 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     defaults:
       run:
         shell: bash
@@ -101,6 +105,17 @@ jobs:
         with:
           path: release
           merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum sam-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: release/SHA256SUMS
 
       - name: Publish release assets
         env:

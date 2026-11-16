@@ -1,6 +1,7 @@
 import type z from "zod";
 import type { AgentError } from "../errors";
-import { Result, err, ok } from "../result";
+import { err, ok } from "../result";
+import type { Result } from "../result";
 import type { IAgentStrategy } from "../strategies/agent/agentStrategy";
 import { MockStrategy } from "../strategies/agent/mockStrategy";
 import { OpenCodeStrategy } from "../strategies/agent/opencodeStrategy";

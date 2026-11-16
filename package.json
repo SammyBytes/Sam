@@ -11,7 +11,9 @@
     "ast": "bun run packages/cli/src/cli.ts ast",
     "build": "bun run --filter '*' build",
     "build:bin": "bun run --filter @sam-lang/cli build:bin",
-    "test": "bun test"
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text && bun run scripts/check-coverage.ts",
+    "typecheck": "bunx tsc --noEmit -p packages/runtime/tsconfig.json && bunx tsc --noEmit -p packages/compiler/tsconfig.json && bunx tsc --noEmit -p packages/cli/tsconfig.json"
   },
   "devDependencies": {
     "@sam-lang/compiler": "workspace:*",
