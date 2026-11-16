@@ -20,6 +20,9 @@ export function generateAgent(agentNode: AgentNode): string {
     | number
     | undefined;
   const retries = getPropertyValue(props.get("retries")) as number | undefined;
+  const reasoningEffort = getPropertyValue(props.get("reasoning_effort")) as
+    | string
+    | undefined;
   const temperature = getPropertyValue(props.get("temperature")) as
     | number
     | undefined;
@@ -81,6 +84,10 @@ export function generateAgent(agentNode: AgentNode): string {
 
   if (retries !== undefined) {
     configFields.push(`retries: ${retries}`);
+  }
+
+  if (reasoningEffort !== undefined) {
+    configFields.push(`reasoningEffort: ${JSON.stringify(reasoningEffort)}`);
   }
 
   if (timeoutSec !== undefined) {

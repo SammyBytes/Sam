@@ -56,6 +56,16 @@ describe("OpenAICompatibleStrategy.buildRequest", () => {
     expect(body.max_completion_tokens).toBeUndefined();
   });
 
+  test("sends reasoning_effort when the agent configures it", () => {
+    const body = bodyOf({ agent: { reasoningEffort: "low" } });
+
+    expect(body.reasoning_effort).toBe("low");
+  });
+
+  test("omits reasoning_effort when the agent does not configure it", () => {
+    expect(bodyOf().reasoning_effort).toBeUndefined();
+  });
+
   test("uses json_object plus an inline schema by default", () => {
     const body = bodyOf();
     const messages = body.messages as Array<{ role: string; content: string }>;

@@ -20,6 +20,7 @@ const AGENT_PROPERTY_VALIDATORS: Record<string, AgentPropertyValidator> = {
   temperature: validateNumber,
   max_tokens: validatePositiveInteger,
   retries: validateNonNegativeInteger,
+  reasoning_effort: validateReasoningEffort,
 };
 
 export function parseAgent(context: IParserContext): AgentNode {
@@ -253,6 +254,25 @@ function validateNonNegativeInteger(
   ) {
     throw new Error(
       `ValidationError in agent '${token.value}' (line ${token.line}): Expected a non-negative integer value.`,
+    );
+  }
+}
+
+const REASONING_EFFORTS = ["low", "medium", "high"] as const;
+
+function validateReasoningEffort(
+  value: AgentPropertyType,
+  token: Token,
+): void {
+  const isStringOrIdentifier =
+    value.type === "StringLiteral" || value.type === "Identifier";
+
+  if (
+    !isStringOrIdentifier ||
+    !REASONING_EFFORTS.includes(String(value.value) as (typeof REASONING_EFFORTS)[number])
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Invalid 'reasoning_effort'. Expected one of: ${REASONING_EFFORTS.join(", ")}.`,
     );
   }
 }

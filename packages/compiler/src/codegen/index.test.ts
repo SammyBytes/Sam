@@ -431,6 +431,7 @@ test("should generate strictSchema, maxTokens, and retries config fields", () =>
       temperature: 0
       max_tokens: 2048
       retries: 3
+      reasoning_effort: "low"
     }
   `;
 
@@ -440,7 +441,7 @@ test("should generate strictSchema, maxTokens, and retries config fields", () =>
     '{ name: "Groq", protocol: "openai-compatible", baseUrl: "https://api.groq.com/openai/v1", strictSchema: true }',
   );
   expect(output).toContain(
-    '{ name: "Reviewer", provider: "Groq", model: "openai/gpt-oss-20b", temperature: 0, maxTokens: 2048, retries: 3 }',
+    '{ name: "Reviewer", provider: "Groq", model: "openai/gpt-oss-20b", temperature: 0, maxTokens: 2048, retries: 3, reasoningEffort: "low" }',
   );
 });
 

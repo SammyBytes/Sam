@@ -655,6 +655,7 @@ test("should parse provider strict_schema and agent max_tokens and retries", () 
       model: "openai/gpt-oss-20b"
       max_tokens: 2048
       retries: 3
+      reasoning_effort: "low"
     }
   `;
 
@@ -683,6 +684,11 @@ test("should parse provider strict_schema and agent max_tokens and retries", () 
       name: "retries",
       value: { type: "NumberLiteral", value: 3 },
     });
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "reasoning_effort",
+      value: { type: "StringLiteral", value: "low" },
+    });
   } else {
     throw new Error("Expected an agent declaration");
   }
@@ -694,6 +700,8 @@ test("should reject invalid max_tokens and retries values", () => {
     `agent A { provider: Groq, model: "m", max_tokens: 1.5 }`,
     `agent A { provider: Groq, model: "m", retries: -1 }`,
     `agent A { provider: Groq, model: "m", retries: 2.5 }`,
+    `agent A { provider: Groq, model: "m", reasoning_effort: "extreme" }`,
+    `agent A { provider: Groq, model: "m", reasoning_effort: 2 }`,
   ];
 
   for (const agentCode of invalidCases) {

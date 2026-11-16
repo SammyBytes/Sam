@@ -80,6 +80,7 @@ agent Reviewer {
   system_prompt: "You are a concise code reviewer. Return the requested JSON.",
   temperature: 0.2,
   max_tokens: 1500,
+  reasoning_effort: "low",
   timeout: 60,
   retries: 2
 }
@@ -359,6 +360,7 @@ agent Reviewer {
   system_prompt: "You are a concise code reviewer.",
   temperature: 0.2,
   max_tokens: 1500,
+  reasoning_effort: "low",
   timeout: 60,
   retries: 2
 }
@@ -372,6 +374,7 @@ agent Reviewer {
 | `system_prompt` | No | String or `env("VAR")` | Instructions prepended to every prompt. |
 | `temperature` | No | Number | Sampling temperature sent with the request. |
 | `max_tokens` | No | Number | Positive integer capping generated output tokens (`max_tokens` in the request payload). |
+| `reasoning_effort` | No | Identifier or string | Reasoning budget hint for models that expose hidden reasoning (`low`, `medium`, or `high`). Lower values leave more of the `max_tokens` budget for the actual output. |
 | `timeout` | No | Number | Request timeout in seconds. The runtime converts it to milliseconds. |
 | `retries` | No | Number | Non-negative integer specifying retry attempts on transient HTTP `429`/`5xx` or network failures using `Retry-After` and exponential backoff. Defaults to `0`. |
 
@@ -528,7 +531,7 @@ The test suite covers the compiler frontend, code generation, entry resolution, 
 
 Sam runs its own repository automation from [`ci/sam/`](./ci/sam). The deterministic CI job compiles every flow in that directory, so a compiler regression that breaks the repository's own automation fails the normal test job.
 
-[`ci/sam/pr-review.sb`](./ci/sam/pr-review.sb) is an advisory pull request reviewer. It uses `strict_schema: true`, `max_tokens: 4096`, and `retries: 3` against Groq to return a schema-validated verdict, risk level, summary, findings, and suggested tests. [`pr-review.yml`](./.github/workflows/pr-review.yml) passes the PR description and a truncated diff to the flow, validates the JSON with `jq`, and creates or updates a single marked comment on the PR.
+[`ci/sam/pr-review.sb`](./ci/sam/pr-review.sb) is an advisory pull request reviewer. It uses `strict_schema: true`, `max_tokens: 4096`, `reasoning_effort: "low"`, and `retries: 3` against Groq to return a schema-validated verdict, risk level, summary, findings, and suggested tests. [`pr-review.yml`](./.github/workflows/pr-review.yml) passes the PR description and a truncated diff to the flow, validates the JSON with `jq`, and creates or updates a single marked comment on the PR.
 
 The workflow reads `GROQ_API_KEY` from repository secrets and uses `openai/gpt-oss-20b` with `temperature: 0`. For drafts, forks, and repositories without the secret, the review is skipped with a workflow notice. The review is advisory: it never approves, merges, or blocks a pull request. `ci.yml` remains the required check.
 
