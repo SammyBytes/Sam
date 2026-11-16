@@ -105,7 +105,7 @@ sam run review.sb "diff --git a/src/auth.ts b/src/auth.ts"
 
 ```
 
-`env("VAR_NAME")` reads from `Bun.env`, and Bun loads `.env` from the current working directory automatically. `.env` is gitignored; use [`.env.example`](https://www.google.com/search?q=./.env.example) as the tracked template.
+`env("VAR_NAME")` reads from `Bun.env`, and Bun loads `.env` from the current working directory automatically. `.env` is gitignored; use [`.env.example`](./.env.example) as the tracked template.
 
 ## Installation
 
@@ -199,7 +199,7 @@ Open a new terminal after changing the user `PATH`. Windows resolves `sam.exe` a
 Linux and macOS:
 
 ```bash
-git clone [https://github.com/SammyBytes/Sam.git](https://github.com/SammyBytes/Sam.git)
+git clone https://github.com/SammyBytes/Sam.git
 cd Sam
 bun install
 bun run build:bin
@@ -217,7 +217,7 @@ Add `~/.local/bin` to your `PATH` using the commands shown in the Linux or macOS
 Windows PowerShell:
 
 ```powershell
-git clone [https://github.com/SammyBytes/Sam.git](https://github.com/SammyBytes/Sam.git)
+git clone https://github.com/SammyBytes/Sam.git
 cd Sam
 bun install
 bun run build:bin
@@ -402,7 +402,7 @@ agent ReleaseSummarizer {
 
 `env("VAR_NAME")` is supported for provider `base_url` and `api_key`, and for agent `model`, `workspace`, and `system_prompt`. Values resolve through `Bun.env.VAR_NAME` at runtime, falling back to an empty string when unset.
 
-Bun loads `.env` from the current working directory automatically. [`.env.example`](https://www.google.com/search?q=./.env.example) lists common provider variables for Groq, OpenRouter, OpenAI, Ollama, and custom OpenAI-compatible servers.
+Bun loads `.env` from the current working directory automatically. [`.env.example`](./.env.example) lists common provider variables for Groq, OpenRouter, OpenAI, Ollama, and custom OpenAI-compatible servers.
 
 ### Flows
 
@@ -483,9 +483,9 @@ The temporary file is always removed, including when the flow returns a failed `
 
 | Package | Responsibility |
 | --- | --- |
-| [`@sam-lang/cli`](https://www.google.com/search?q=./packages/cli) | Citty command surface: `run`, `compile`, and `ast`. |
-| [`@sam-lang/compiler`](https://www.google.com/search?q=./packages/compiler) | Lexer, parser, AST, codegen, entry resolution, and CLI argument coercion. |
-| [`@sam-lang/runtime`](https://www.google.com/search?q=./packages/runtime) | `createRuntime`, local runner and HTTP provider strategies, process/HTTP execution, retries, timeouts, and `Result` values. |
+| [`@sam-lang/cli`](./packages/cli) | Citty command surface: `run`, `compile`, and `ast`. |
+| [`@sam-lang/compiler`](./packages/compiler) | Lexer, parser, AST, codegen, entry resolution, and CLI argument coercion. |
+| [`@sam-lang/runtime`](./packages/runtime) | `createRuntime`, local runner and HTTP provider strategies, process/HTTP execution, retries, timeouts, and `Result` values. |
 
 The compiler is a bootstrap implementation in TypeScript. It will be retired in `v1.0.0` when Sam becomes self-hosted.
 
@@ -526,15 +526,25 @@ The test suite covers the compiler frontend, code generation, entry resolution, 
 
 ### Internal automation
 
-Sam runs its own repository automation from [`ci/sam/`](https://www.google.com/search?q=./ci/sam). The deterministic CI job compiles every flow in that directory, so a compiler regression that breaks the repository's own automation fails the normal test job.
+Sam runs its own repository automation from [`ci/sam/`](./ci/sam). The deterministic CI job compiles every flow in that directory, so a compiler regression that breaks the repository's own automation fails the normal test job.
 
-[`ci/sam/pr-review.sb`](https://www.google.com/search?q=./ci/sam/pr-review.sb) is an advisory pull request reviewer. It uses `strict_schema: true`, `max_tokens: 1500`, and `retries: 3` against Groq to return a schema-validated verdict, risk level, summary, findings, and suggested tests. [`pr-review.yml`](https://www.google.com/search?q=./.github/workflows/pr-review.yml) passes the PR description and a truncated diff to the flow, validates the JSON with `jq`, and creates or updates a single marked comment on the PR.
+[`ci/sam/pr-review.sb`](./ci/sam/pr-review.sb) is an advisory pull request reviewer. It uses `strict_schema: true`, `max_tokens: 4096`, and `retries: 3` against Groq to return a schema-validated verdict, risk level, summary, findings, and suggested tests. [`pr-review.yml`](./.github/workflows/pr-review.yml) passes the PR description and a truncated diff to the flow, validates the JSON with `jq`, and creates or updates a single marked comment on the PR.
 
 The workflow reads `GROQ_API_KEY` from repository secrets and uses `openai/gpt-oss-20b` with `temperature: 0`. For drafts, forks, and repositories without the secret, the review is skipped with a workflow notice. The review is advisory: it never approves, merges, or blocks a pull request. `ci.yml` remains the required check.
 
 The diff is treated as untrusted data. Pull request metadata is passed to the shell through environment variables instead of direct expression interpolation, the diff is capped at 20,000 bytes to stay inside the provider's token-per-minute limit, and the workflow runs only on `pull_request` with `contents: read` and `pull-requests: write` permissions. Rate limits and transient provider failures are handled natively by the Sam runtime with `Retry-After` and exponential backoff; if the advisory review still cannot run, the job reports a warning and leaves the deterministic checks in charge.
 
-Pushing a `v*` tag triggers the release workflow, which builds Linux, macOS, and Windows binaries and attaches them to the GitHub Release.
+Pushing a `v*` tag triggers the release workflow, which builds Linux, macOS, and Windows binaries and attaches them to the GitHub Release. Each release also includes a `SHA256SUMS` file and a signed build provenance attestation generated by GitHub Actions.
+
+To verify a downloaded binary:
+
+```bash
+# Integrity
+sha256sum -c SHA256SUMS
+
+# Build provenance (requires the GitHub CLI)
+gh attestation verify sam-linux-x64 --repo SammyBytes/Sam
+```
 
 ## Roadmap
 
@@ -549,5 +559,5 @@ Earlier releases delivered the lexer, schema parsing and Zod codegen (`v0.1.x`),
 
 Distributed under a dual license. Choose either:
 
-* [MIT](https://www.google.com/search?q=./LICENSE-MIT)
-* [Apache License 2.0](https://www.google.com/search?q=./LICENSE-APACHE)
+* [MIT](./LICENSE-MIT)
+* [Apache License 2.0](./LICENSE-APACHE)
