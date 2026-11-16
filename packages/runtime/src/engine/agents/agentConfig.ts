@@ -18,6 +18,7 @@ export type ProviderAgentConfig = {
   temperature?: number;
   maxTokens?: number;
   retries?: number;
+  reasoningEffort?: "low" | "medium" | "high";
 };
 
 export type AgentConfig = LocalAgentConfig | ProviderAgentConfig;

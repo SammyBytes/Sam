@@ -44,6 +44,12 @@ export class OpenAICompatibleStrategy implements IProviderStrategy {
       body.max_tokens = agent.maxTokens;
     }
 
+    if (agent.reasoningEffort !== undefined) {
+      // Reasoning models spend completion tokens on hidden reasoning. A lower
+      // effort keeps that budget available for the actual JSON output.
+      body.reasoning_effort = agent.reasoningEffort;
+    }
+
     if (schema) {
       const jsonSchema = z.toJSONSchema(schema, {
         target: "openapi-3.0",
