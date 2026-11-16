@@ -7,6 +7,8 @@ import {
   type TokenType,
 } from "./tokens";
 
+export type { Token, TokenType };
+
 export function tokenize(input: string): Token[] {
   const scanner = new Scanner(input);
   const tokens: Token[] = [];
