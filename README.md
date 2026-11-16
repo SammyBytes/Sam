@@ -1,6 +1,6 @@
 # Sam (`.sb`)
 
-[![Version](https://img.shields.io/badge/version-0.5.0--rc.2-blue.svg)](https://github.com/SammyBytes/Sam/releases)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/SammyBytes/Sam/releases)
 [![Runtime](https://img.shields.io/badge/runtime-Bun-000000.svg?logo=bun&logoColor=white)](https://bun.sh)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE-MIT)
 
@@ -209,7 +209,7 @@ mkdir -p ~/.local/bin
 cp dist/sam ~/.local/bin/sam
 
 sam --version
-# 0.5.0-rc.2
+# 0.5.0
 
 ```
 
@@ -552,12 +552,14 @@ gh attestation verify sam-linux-x64 --repo SammyBytes/Sam
 ## Roadmap
 
 * **v0.4.0 — Direct Execution** *(Done)*: `sam run` with positional arguments and stdin pipelines, smart entry point resolution, standalone compiled binaries for Linux/macOS/Windows, tag-driven releases, and guaranteed temporary-file cleanup.
-* **v0.5.0 — Providers** *(In RC)*: top-level `provider` declarations, OpenAI-compatible HTTP execution, `env()` expansion, `strict_schema` structured outputs, native `retries` with `Retry-After` backoff, `max_tokens` limits, `reasoning_effort` budgets, and full backward compatibility with local `opencode` and `mock` runners.
-* **v0.6.0 — Integrations & Analyzer** *(Next)*: additional provider protocols, richer `model` configuration, webhook triggers, contract validation loops, and a compiler-level `sam check` analyzer for best-practice warnings.
-* **v0.8.0 — Deeper Analysis** *(Planned)*: analyzer output as JSON, project-level rule configuration, inline suppressions (which require comment syntax in the lexer), an extensible model capability table, and editor/CI integrations. Warnings stay non-blocking by default; `sam check --strict` promotes them to errors.
+* **v0.5.0 — Providers** *(Done)*: top-level `provider` declarations, OpenAI-compatible HTTP execution, `env()` expansion, `strict_schema` structured outputs, native `retries` with `Retry-After` backoff, `max_tokens` limits, `reasoning_effort` budgets, and full backward compatibility with local `opencode` and `mock` runners.
+* **v0.6.0 — Integrations & Analyzer** *(Next)*: additional provider protocols, richer `model` configuration, webhook triggers, contract validation loops, a compiler-level `sam check` analyzer for best-practice warnings, and a repository-level technical whitepaper.
+* **v0.8.0 — Deeper Analysis** *(Planned)*: analyzer output as JSON, project-level rule configuration, inline suppressions (which require comment syntax in the lexer), an extensible model capability table, editor/CI integrations, and a website edition of the whitepaper maintained as the project's long-form history. Warnings stay non-blocking by default; `sam check --strict` promotes them to errors.
 * **v1.0.0 — Self-Hosting** *(Planned)*: a compiler written in Sam itself, retiring `@sam-lang/compiler` and removing the TypeScript bootstrap toolchain.
 
 The analyzer is intentionally compiler-side and offline: it never calls a model. Its first rules cover reasoning-model budgets (`reasoning_effort`, `max_tokens`), `strict_schema` adoption, missing `retries` or `timeout` on HTTP agents, literal API keys, and hardcoded model names. Sam does not inject provider-specific defaults into flows; the analyzer recommends explicit values instead.
+
+Whitepapers are planned as two separate deliverables. The repository-level technical whitepaper lives next to the code and is versioned with it. A later website edition expands it into the project's long-form history, so it can evolve independently of the release cadence.
 
 Earlier releases delivered the lexer, schema parsing and Zod codegen (`v0.1.x`), agent declarations and the runtime split (`v0.2.0`), and flows plus the runtime SDK (`v0.3.0`).
 
