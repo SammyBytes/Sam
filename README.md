@@ -552,9 +552,12 @@ gh attestation verify sam-linux-x64 --repo SammyBytes/Sam
 ## Roadmap
 
 * **v0.4.0 — Direct Execution** *(Done)*: `sam run` with positional arguments and stdin pipelines, smart entry point resolution, standalone compiled binaries for Linux/macOS/Windows, tag-driven releases, and guaranteed temporary-file cleanup.
-* **v0.5.0 — Providers** *(In RC)*: top-level `provider` declarations, OpenAI-compatible HTTP execution, `env()` expansion, `strict_schema` structured outputs, native `retries` with `Retry-After` backoff, `max_tokens` limits, and full backward compatibility with local `opencode` and `mock` runners.
-* **v0.6.0 — Integrations** *(Next)*: additional provider protocols, richer `model` configuration, webhook triggers, and contract validation loops.
+* **v0.5.0 — Providers** *(In RC)*: top-level `provider` declarations, OpenAI-compatible HTTP execution, `env()` expansion, `strict_schema` structured outputs, native `retries` with `Retry-After` backoff, `max_tokens` limits, `reasoning_effort` budgets, and full backward compatibility with local `opencode` and `mock` runners.
+* **v0.6.0 — Integrations & Analyzer** *(Next)*: additional provider protocols, richer `model` configuration, webhook triggers, contract validation loops, and a compiler-level `sam check` analyzer for best-practice warnings.
+* **v0.8.0 — Deeper Analysis** *(Planned)*: analyzer output as JSON, project-level rule configuration, inline suppressions (which require comment syntax in the lexer), an extensible model capability table, and editor/CI integrations. Warnings stay non-blocking by default; `sam check --strict` promotes them to errors.
 * **v1.0.0 — Self-Hosting** *(Planned)*: a compiler written in Sam itself, retiring `@sam-lang/compiler` and removing the TypeScript bootstrap toolchain.
+
+The analyzer is intentionally compiler-side and offline: it never calls a model. Its first rules cover reasoning-model budgets (`reasoning_effort`, `max_tokens`), `strict_schema` adoption, missing `retries` or `timeout` on HTTP agents, literal API keys, and hardcoded model names. Sam does not inject provider-specific defaults into flows; the analyzer recommends explicit values instead.
 
 Earlier releases delivered the lexer, schema parsing and Zod codegen (`v0.1.x`), agent declarations and the runtime split (`v0.2.0`), and flows plus the runtime SDK (`v0.3.0`).
 
