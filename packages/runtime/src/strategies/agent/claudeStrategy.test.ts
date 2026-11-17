@@ -38,7 +38,8 @@ describe("ClaudeStrategy", () => {
 
     expect(args.slice(0, 4)).toEqual(["-p", "--model", "sonnet", "--no-session-persistence"]);
     expect(args.at(-1)).toBe("Review this change");
-    expect(args).not.toContain("--output-format");
+    expect(args[args.indexOf("--output-format") + 1]).toBe("json");
+    expect(args).not.toContain("--json-schema");
   });
 
   test("appends the system prompt and maps reasoning effort", () => {
@@ -130,10 +131,19 @@ describe("ClaudeStrategy.extractOutput", () => {
     expect(output).toBe("plain answer");
   });
 
-  test("passes plain text through when the CLI is not in JSON mode", () => {
+  test("passes plain text through unchanged", () => {
     expect(strategy.extractOutput("plain text output")).toBe(
       "plain text output",
     );
+  });
+
+  test("does not treat a JSON-looking model reply as an envelope", () => {
+    expect(strategy.extractOutput('{"result":"hola"}')).toBe(
+      '{"result":"hola"}',
+    );
+    expect(
+      strategy.extractOutput('{"result":"cuenta","is_error":true}'),
+    ).toBe('{"result":"cuenta","is_error":true}');
   });
 
   test("throws when Claude Code reports an error result", () => {

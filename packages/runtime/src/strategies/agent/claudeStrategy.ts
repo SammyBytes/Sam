@@ -77,14 +77,13 @@ export class ClaudeStrategy implements IAgentStrategy {
     // Sam never resumes sessions, so do not leave transcripts behind.
     args.push("--no-session-persistence");
 
+    // Always request the JSON envelope so extractOutput never has to guess
+    // whether stdout is plain text or an envelope.
+    args.push("--output-format", "json");
+
     if (schema) {
       const jsonSchema = z.toJSONSchema(schema, { target: "draft-7" });
-      args.push(
-        "--output-format",
-        "json",
-        "--json-schema",
-        JSON.stringify(jsonSchema),
-      );
+      args.push("--json-schema", JSON.stringify(jsonSchema));
     }
 
     args.push(inputPrompt);
@@ -105,6 +104,10 @@ export class ClaudeStrategy implements IAgentStrategy {
     if (!parsed || typeof parsed !== "object") return trimmed;
 
     const envelope = parsed as Record<string, unknown>;
+
+    // Only treat the output as an envelope when it is one. Plain text that
+    // happens to be JSON (for example {"result": "..."}) passes through.
+    if (envelope.type !== "result") return trimmed;
 
     if (envelope.structured_output !== undefined) {
       return JSON.stringify(envelope.structured_output);
