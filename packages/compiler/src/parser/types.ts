@@ -1,4 +1,4 @@
-import type { Token, TokenType } from "../lexer";
+import type { Token, TokenType } from "../lexer/tokens";
 import type { SamEdition } from "./ast";
 
 export interface IParserContext {

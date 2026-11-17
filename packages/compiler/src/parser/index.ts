@@ -65,13 +65,11 @@ export class Parser implements IParserContext {
   public parse(): ProgramNode {
     const body: ASTNode[] = [];
 
-    switch (this.peek().type) {
-      case "EDITION":
-        this.edition = this.parseHeaderEdition();
-        break;
-      default:
-        this.edition = DEFAULT_EDITION; // Default to 2026 if no edition is specified
-    }
+    // The edition directive, when present, must be the first token.
+    this.edition =
+      this.peek().type === "EDITION"
+        ? this.parseHeaderEdition()
+        : DEFAULT_EDITION;
 
     while (!this.isAtEnd()) {
       const token = this.peek();
@@ -111,23 +109,20 @@ export class Parser implements IParserContext {
     return programNode;
   }
 
+  /** Consumes `edition "<year>"`; the caller has already checked the token. */
   private parseHeaderEdition(): SamEdition {
-    const editionToken = this.peek();
-    if (editionToken.type === "EDITION") {
-      this.advance(); // Consume the "EDITION" token
-      const editionValueToken = this.consume(
-        "STRING",
-        'Expected a string value for the edition (e.g., edition "2026")',
-      );
+    this.advance(); // Consume the "EDITION" token
+    const editionValueToken = this.consume(
+      "STRING",
+      'Expected a string value for the edition (e.g., edition "2026")',
+    );
 
-      const editionValue = editionValueToken.value;
-      if (!SUPPORTED_EDITIONS.includes(editionValue as SamEdition)) {
-        throw new Error(
-          `SyntaxError: Unsupported edition '${editionValue}' at line ${editionValueToken.line}, column ${editionValueToken.column}. Supported editions: ${SUPPORTED_EDITIONS.join(", ")}`,
-        );
-      }
-      return editionValue as SamEdition;
+    const editionValue = editionValueToken.value;
+    if (!SUPPORTED_EDITIONS.includes(editionValue as SamEdition)) {
+      throw new Error(
+        `SyntaxError: Unsupported edition '${editionValue}' at line ${editionValueToken.line}, column ${editionValueToken.column}. Supported editions: ${SUPPORTED_EDITIONS.join(", ")}`,
+      );
     }
-    return DEFAULT_EDITION; // Default to 2026 if no edition is specified
+    return editionValue as SamEdition;
   }
 }

@@ -762,3 +762,11 @@ test("rejects an edition directive below another declaration", () => {
     /'edition' directive must appear only once at the top of the file \(line 6, column 5\)/,
   );
 });
+
+test("reports the exact position of an edition directive that is not first", () => {
+  const code = `flow main() {}\nedition "2026"`;
+
+  expect(() => new Parser(tokenize(code)).parse()).toThrow(
+    /'edition' directive must appear only once at the top of the file \(line 2, column 1\)/,
+  );
+});
