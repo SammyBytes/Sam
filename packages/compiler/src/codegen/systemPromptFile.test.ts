@@ -157,6 +157,12 @@ describe("loadSystemPromptFile", () => {
     expect(() => load("empty.md")).toThrow(/is empty/);
   });
 
+  test("rejects zero-byte files", async () => {
+    await writeFile(join(sourceDir, "zero.md"), "");
+
+    expect(() => load("zero.md")).toThrow(/is empty/);
+  });
+
   test("rejects missing files", () => {
     expect(() => load("missing.md")).toThrow(/file not found/);
   });
