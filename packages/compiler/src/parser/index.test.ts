@@ -827,3 +827,31 @@ test("rejects invalid Claude Code runner options", () => {
     expect(() => new Parser(tokenize(code)).parse()).toThrow();
   }
 });
+
+test("rejects provider-only options on the claude runner", () => {
+  for (const property of [`temperature: 0.2`, `max_tokens: 100`, `retries: 2`]) {
+    const code = `
+      agent ClaudeReviewer {
+        runner: claude,
+        workspace: ".",
+        ${property}
+      }
+    `;
+
+    expect(() => new Parser(tokenize(code)).parse()).toThrow(
+      /not supported by runner 'claude'/,
+    );
+  }
+});
+
+test("accepts timeout on the claude runner", () => {
+  const code = `
+    agent ClaudeReviewer {
+      runner: claude,
+      workspace: ".",
+      timeout: 60000
+    }
+  `;
+
+  expect(() => new Parser(tokenize(code)).parse()).not.toThrow();
+});

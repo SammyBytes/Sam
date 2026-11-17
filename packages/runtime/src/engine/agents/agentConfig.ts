@@ -18,9 +18,13 @@ export type LocalAgentConfig = {
   workspace: string;
   systemPrompt?: string;
   model?: string;
+  /** Milliseconds. Enforced for every runner (process and HTTP). */
   timeout?: number;
+  /** HTTP providers only. The parser rejects it for the `claude` runner. */
   temperature?: number;
+  /** HTTP providers only. The parser rejects it for the `claude` runner. */
   maxTokens?: number;
+  /** HTTP providers only. The parser rejects it for the `claude` runner. */
   retries?: number;
   reasoningEffort?: "low" | "medium" | "high";
   /** Claude Code `--permission-mode`. */

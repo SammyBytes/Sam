@@ -143,6 +143,33 @@ function validateAgentProperties(
 
   validateExecutionTarget(agentToken, present);
   validatePromptExclusivity(agentToken, present);
+  validateClaudeRunnerProperties(agentToken, properties);
+}
+
+// Properties that the claude runner cannot honor. Claude Code has no
+// temperature, max-tokens or HTTP-style retry control, and Sam does not retry
+// process runs, so accepting these would silently do nothing.
+// `timeout` is not listed: the process executor enforces it for every runner.
+const CLAUDE_UNSUPPORTED_PROPERTIES = new Set([
+  "temperature",
+  "max_tokens",
+  "retries",
+]);
+
+function validateClaudeRunnerProperties(
+  agentToken: Token,
+  properties: AgentPropertyNode[],
+): void {
+  const runner = properties.find((prop) => prop.name === "runner");
+  if (!runner || String(runner.value.value) !== AgentRunner.CLAUDE) return;
+
+  for (const prop of properties) {
+    if (CLAUDE_UNSUPPORTED_PROPERTIES.has(prop.name)) {
+      throw new Error(
+        `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): '${prop.name}' is not supported by runner 'claude'. Remove it, or use a 'provider' for HTTP models.`,
+      );
+    }
+  }
 }
 
 // --- Business logic validators for specific properties ---
