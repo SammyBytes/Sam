@@ -73,6 +73,17 @@ describe("loadSystemPromptFile", () => {
     );
   });
 
+  test.skipIf(process.platform !== "win32")(
+    "rejects Windows-style path traversal outside the source directory",
+    async () => {
+      await writeFile(join(workDir, "secret.md"), "# Secret\n");
+
+      expect(() => load("..\\secret.md")).toThrow(
+        /must resolve inside the \.sb source directory/,
+      );
+    },
+  );
+
   test.skipIf(process.platform === "win32")(
     "rejects symlinks that escape the source directory",
     async () => {

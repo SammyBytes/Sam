@@ -158,7 +158,9 @@ describe("system_prompt_file", () => {
   test("rejects path traversal during compilation", async () => {
     await writeFile(join(outsideDir, "outside.md"), "# Outside\n");
 
-    const relativePath = join("..", basename(outsideDir), "outside.md");
+    // Use forward slashes: the path is embedded in a `.sb` string literal,
+    // where backslashes would be parsed as escape sequences on Windows.
+    const relativePath = `../${basename(outsideDir)}/outside.md`;
     const result = await runCli(
       "compile",
       projectDir,
