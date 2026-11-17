@@ -1,0 +1,19 @@
+agent DigestWriter {
+  runner: claude,
+  model: "haiku",
+  workspace: ".",
+  system_prompt: "You write short status digests for a development team. Use at most five sentences. Mention what is done, what is in progress, and what is blocked.",
+  permission_mode: "plan",
+  max_turns: 4,
+  max_budget_usd: 0.15,
+  disallowed_tools: "Bash, Edit, Write",
+  timeout: 120
+}
+
+flow Digest(tasks: string) {
+  let result = use unsafe DigestWriter(`Write a status digest for these tasks:\n\n${tasks}`)
+  if (!result.ok) {
+    return result
+  }
+  return result.value
+}

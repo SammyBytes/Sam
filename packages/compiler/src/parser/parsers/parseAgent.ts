@@ -1,4 +1,9 @@
-import { AgentRunner, type AgentRunnerKind } from "@sam-lang/runtime";
+import {
+  AgentRunner,
+  CLAUDE_PERMISSION_MODES,
+  type AgentRunnerKind,
+  type ClaudePermissionMode,
+} from "@sam-lang/runtime";
 import type { AgentNode, AgentPropertyNode, AgentPropertyType } from "../ast";
 import type { IParserContext } from "../types";
 import type { Token } from "../../lexer/tokens";
@@ -21,6 +26,13 @@ const AGENT_PROPERTY_VALIDATORS: Record<string, AgentPropertyValidator> = {
   max_tokens: validatePositiveInteger,
   retries: validateNonNegativeInteger,
   reasoning_effort: validateReasoningEffort,
+  permission_mode: validatePermissionMode,
+  max_turns: validatePositiveInteger,
+  fallback_model: validateStringOrEnv,
+  allowed_tools: validateStringOrEnv,
+  disallowed_tools: validateStringOrEnv,
+  max_budget_usd: validatePositiveNumber,
+  bare: validateBoolean,
 };
 
 export function parseAgent(context: IParserContext): AgentNode {
@@ -131,6 +143,33 @@ function validateAgentProperties(
 
   validateExecutionTarget(agentToken, present);
   validatePromptExclusivity(agentToken, present);
+  validateClaudeRunnerProperties(agentToken, properties);
+}
+
+// Properties that the claude runner cannot honor. Claude Code has no
+// temperature, max-tokens or HTTP-style retry control, and Sam does not retry
+// process runs, so accepting these would silently do nothing.
+// `timeout` is not listed: the process executor enforces it for every runner.
+const CLAUDE_UNSUPPORTED_PROPERTIES = new Set([
+  "temperature",
+  "max_tokens",
+  "retries",
+]);
+
+function validateClaudeRunnerProperties(
+  agentToken: Token,
+  properties: AgentPropertyNode[],
+): void {
+  const runner = properties.find((prop) => prop.name === "runner");
+  if (!runner || String(runner.value.value) !== AgentRunner.CLAUDE) return;
+
+  for (const prop of properties) {
+    if (CLAUDE_UNSUPPORTED_PROPERTIES.has(prop.name)) {
+      throw new Error(
+        `ValidationError in agent '${agentToken.value}' (line ${agentToken.line}): '${prop.name}' is not supported by runner 'claude'. Remove it, or use a 'provider' for HTTP models.`,
+      );
+    }
+  }
 }
 
 // --- Business logic validators for specific properties ---
@@ -243,6 +282,29 @@ function validatePositiveInteger(
   }
 }
 
+function validatePositiveNumber(
+  value: AgentPropertyType,
+  token: Token,
+): void {
+  if (
+    value.type !== "NumberLiteral" ||
+    !Number.isFinite(value.value) ||
+    value.value <= 0
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a positive number value.`,
+    );
+  }
+}
+
+function validateBoolean(value: AgentPropertyType, token: Token): void {
+  if (value.type !== "BooleanLiteral") {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a boolean value.`,
+    );
+  }
+}
+
 function validateNonNegativeInteger(
   value: AgentPropertyType,
   token: Token,
@@ -273,6 +335,25 @@ function validateReasoningEffort(
   ) {
     throw new Error(
       `ValidationError in agent '${token.value}' (line ${token.line}): Invalid 'reasoning_effort'. Expected one of: ${REASONING_EFFORTS.join(", ")}.`,
+    );
+  }
+}
+
+function validatePermissionMode(
+  value: AgentPropertyType,
+  token: Token,
+): void {
+  const isStringOrIdentifier =
+    value.type === "StringLiteral" || value.type === "Identifier";
+
+  if (
+    !isStringOrIdentifier ||
+    !CLAUDE_PERMISSION_MODES.includes(
+      String(value.value) as ClaudePermissionMode,
+    )
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Invalid 'permission_mode'. Expected one of: ${CLAUDE_PERMISSION_MODES.join(", ")}.`,
     );
   }
 }

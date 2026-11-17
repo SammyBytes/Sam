@@ -1,5 +1,6 @@
 export const AgentRunner = {
   OPENCODE: "opencode",
+  CLAUDE: "claude",
   MOCK: "mock",
 } as const;
 

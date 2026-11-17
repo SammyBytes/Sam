@@ -18,4 +18,10 @@ export interface IAgentStrategy {
    * @returns The binary name as a string.
    */
   getBinaryName(): string;
+  /**
+   * Optionally normalizes raw stdout before Sam parses it as JSON. Strategies
+   * that use an envelope output format (for example Claude Code's JSON mode)
+   * implement this to return the model's actual answer.
+   */
+  extractOutput?(rawStdout: string): string;
 }
