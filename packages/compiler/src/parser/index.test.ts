@@ -729,3 +729,36 @@ test("should reject a non-boolean strict_schema provider property", () => {
     /strict_schema/,
   );
 });
+test("defaults the edition to 2026 when no directive is present", () => {
+  const ast = new Parser(tokenize(`flow main() {}`)).parse();
+
+  expect(ast.edition).toBe("2026");
+});
+
+test("accepts an edition directive at the top of the file", () => {
+  const ast = new Parser(
+    tokenize(`edition "2026"\n\nflow main() {}`),
+  ).parse();
+
+  expect(ast.edition).toBe("2026");
+});
+
+test("rejects an unsupported edition", () => {
+  expect(() =>
+    new Parser(tokenize(`edition "2099"\n\nflow main() {}`)).parse(),
+  ).toThrow(/Unsupported edition '2099'/);
+});
+
+test("rejects an edition directive below another declaration", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+    edition "2026"
+  `;
+
+  expect(() => new Parser(tokenize(code)).parse()).toThrow(
+    /'edition' directive must appear only once at the top of the file \(line 6, column 5\)/,
+  );
+});

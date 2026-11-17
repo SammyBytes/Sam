@@ -1,5 +1,11 @@
 import type { Token, TokenType } from "../lexer/tokens";
-import type { ASTNode, ProgramNode } from "./ast";
+import {
+  DEFAULT_EDITION,
+  SUPPORTED_EDITIONS,
+  type ASTNode,
+  type ProgramNode,
+  type SamEdition,
+} from "./ast";
 import { parseAgent } from "./parsers/parseAgent";
 import { parseFlow } from "./parsers/parseFlow";
 import { parseProvider } from "./parsers/parseProvider";
@@ -10,9 +16,11 @@ import { validateProgram } from "./validator";
 export class Parser implements IParserContext {
   private tokens: Token[];
   private current: number;
+  public edition: SamEdition;
 
-  constructor(tokens: Token[]) {
+  constructor(tokens: Token[], edition: SamEdition = DEFAULT_EDITION) {
     this.tokens = tokens;
+    this.edition = edition;
     this.current = 0;
   }
 
@@ -57,10 +65,22 @@ export class Parser implements IParserContext {
   public parse(): ProgramNode {
     const body: ASTNode[] = [];
 
+    switch (this.peek().type) {
+      case "EDITION":
+        this.edition = this.parseHeaderEdition();
+        break;
+      default:
+        this.edition = DEFAULT_EDITION; // Default to 2026 if no edition is specified
+    }
+
     while (!this.isAtEnd()) {
       const token = this.peek();
 
       switch (token.type) {
+        case "EDITION":
+          throw new Error(
+            `SyntaxError: 'edition' directive must appear only once at the top of the file (line ${token.line}, column ${token.column})`,
+          );
         case "SCHEMA":
           body.push(parseSchema(this));
           break;
@@ -83,10 +103,31 @@ export class Parser implements IParserContext {
 
     const programNode: ProgramNode = {
       type: "Program",
+      edition: this.edition,
       body,
     };
 
     validateProgram(programNode);
     return programNode;
+  }
+
+  private parseHeaderEdition(): SamEdition {
+    const editionToken = this.peek();
+    if (editionToken.type === "EDITION") {
+      this.advance(); // Consume the "EDITION" token
+      const editionValueToken = this.consume(
+        "STRING",
+        'Expected a string value for the edition (e.g., edition "2026")',
+      );
+
+      const editionValue = editionValueToken.value;
+      if (!SUPPORTED_EDITIONS.includes(editionValue as SamEdition)) {
+        throw new Error(
+          `SyntaxError: Unsupported edition '${editionValue}' at line ${editionValueToken.line}, column ${editionValueToken.column}. Supported editions: ${SUPPORTED_EDITIONS.join(", ")}`,
+        );
+      }
+      return editionValue as SamEdition;
+    }
+    return DEFAULT_EDITION; // Default to 2026 if no edition is specified
   }
 }
