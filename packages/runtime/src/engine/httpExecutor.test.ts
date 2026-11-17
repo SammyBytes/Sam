@@ -92,6 +92,7 @@ function run(
     retries?: number;
     timeout?: number;
     baseUrlOverride?: string;
+    apiKeyOverride?: string;
   } = {},
 ) {
   const agent: ProviderAgentConfig = {
@@ -107,17 +108,19 @@ function run(
     delays.push(ms);
   };
 
+  const resolvedProvider = {
+    ...provider,
+    baseUrl: options.baseUrlOverride ?? baseUrl,
+    apiKey: options.apiKeyOverride ?? provider.apiKey,
+  };
+
   return {
     delays,
     result: providerExecute(
-      { ...provider, baseUrl: options.baseUrlOverride ?? baseUrl },
+      resolvedProvider,
       agent,
       strategy,
-      strategy.buildRequest(
-        { ...provider, baseUrl: options.baseUrlOverride ?? baseUrl },
-        agent,
-        "ping",
-      ),
+      strategy.buildRequest(resolvedProvider, agent, "ping"),
       sleeper,
     ),
   };
@@ -184,6 +187,20 @@ describe("providerExecute retries", () => {
       expect(outcome.error.code).toBe("PROVIDER_HTTP_ERROR");
       expect(outcome.error.message).not.toContain("sk-test");
       expect(outcome.error.message).toContain("[REDACTED]");
+    }
+  });
+
+  test("does not alter messages when the api key is empty", async () => {
+    const { result } = run("leaky-key", { apiKeyOverride: "" });
+    const outcome = await result;
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.error.code).toBe("PROVIDER_HTTP_ERROR");
+      // An empty secret must not be treated as a pattern to redact: doing so
+      // would inject "[REDACTED]" between every character of the message.
+      expect(outcome.error.message).not.toContain("[REDACTED]");
+      expect(outcome.error.message).toContain("invalid key: sk-test");
     }
   });
 
