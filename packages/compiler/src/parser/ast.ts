@@ -136,6 +136,14 @@ export interface ProviderNode {
 }
 
 //------------------------------------------------------------------
+// Edition Supported (v0.6.0)
+//------------------------------------------------------------------
+
+export const SUPPORTED_EDITIONS = ["2026"] as const;
+export type SamEdition = (typeof SUPPORTED_EDITIONS)[number]; // The edition of the Sam language, e.g., "2026"
+export const DEFAULT_EDITION: SamEdition = "2026"; // The default edition of the Sam language
+
+//------------------------------------------------------------------
 // AST Node Types
 //------------------------------------------------------------------
 
@@ -143,5 +151,6 @@ export type ASTNode = SchemaNode | AgentNode | FlowNode | ProviderNode;
 
 export interface ProgramNode {
   type: "Program";
+  edition: SamEdition; // The edition of the Sam language, e.g., "2026"
   body: ASTNode[]; // Array of AST nodes, which can include schema declarations and other constructs
 }
