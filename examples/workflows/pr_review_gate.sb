@@ -1,0 +1,28 @@
+schema Review {
+  approved: boolean,
+  risk_level: string,
+  blocking_issues: string
+}
+
+agent DiffReviewer {
+  runner: claude,
+  model: "sonnet",
+  workspace: ".",
+  system_prompt: "You review code diffs for correctness, security and missing tests. Answer only with the requested JSON. blocking_issues is a short list, or the word none. Approve only when there are no blocking issues.",
+  permission_mode: "plan",
+  max_turns: 4,
+  max_budget_usd: 0.25,
+  disallowed_tools: "Bash, Edit, Write",
+  timeout: 180
+}
+
+flow ReviewDiff(diff: string) {
+  let review = use DiffReviewer<Review>(`Review this diff:\n\n${diff}`)
+  if (!review.ok) {
+    return review
+  }
+  if (review.value.approved == false) {
+    return "blocked"
+  }
+  return "approved"
+}

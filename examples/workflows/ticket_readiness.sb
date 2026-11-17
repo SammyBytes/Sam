@@ -1,0 +1,26 @@
+schema Readiness {
+  has_objective: boolean,
+  has_out_of_scope: boolean,
+  has_validation: boolean,
+  missing_sections: string
+}
+
+agent TicketChecker {
+  runner: claude,
+  model: "haiku",
+  workspace: ".",
+  system_prompt: "You check engineering tickets for completeness. Answer only with the requested JSON. missing_sections is a comma-separated list of missing items, or the word none.",
+  permission_mode: "plan",
+  max_turns: 4,
+  max_budget_usd: 0.15,
+  disallowed_tools: "Bash, Edit, Write",
+  timeout: 120
+}
+
+flow CheckTicket(ticket: string) {
+  let result = use TicketChecker<Readiness>(`Check this ticket:\n\n${ticket}`)
+  if (!result.ok) {
+    return result
+  }
+  return result.value
+}

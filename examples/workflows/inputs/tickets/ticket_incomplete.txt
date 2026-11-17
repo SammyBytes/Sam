@@ -1,0 +1,3 @@
+Login button does nothing on Safari
+
+Users report that clicking the login button in Safari 17 does nothing. Chrome works.

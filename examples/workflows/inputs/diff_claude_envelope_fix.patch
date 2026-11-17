@@ -1,0 +1,48 @@
+commit 9bba51e358772a1fabff1a763edbc16a0837b88a
+Author: Sammy <43734971+SammyBytes@users.noreply.github.com>
+Date:   Tue Nov 17 09:13:45 2026 -0400
+
+    fix(runner): only parse Claude Code JSON envelopes
+    
+    Always request --output-format json so the response shape is known, and
+    only unwrap stdout when it is an envelope (type: "result"). Plain model
+    replies that happen to look like JSON, such as {"result": "hola"}, are
+    returned unchanged instead of being rewritten or treated as errors.
+    
+    Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
+
+diff --git a/packages/runtime/src/strategies/agent/claudeStrategy.ts b/packages/runtime/src/strategies/agent/claudeStrategy.ts
+index 773f945..c204678 100644
+--- a/packages/runtime/src/strategies/agent/claudeStrategy.ts
++++ b/packages/runtime/src/strategies/agent/claudeStrategy.ts
+@@ -77,14 +77,13 @@ export class ClaudeStrategy implements IAgentStrategy {
+     // Sam never resumes sessions, so do not leave transcripts behind.
+     args.push("--no-session-persistence");
+ 
++    // Always request the JSON envelope so extractOutput never has to guess
++    // whether stdout is plain text or an envelope.
++    args.push("--output-format", "json");
++
+     if (schema) {
+       const jsonSchema = z.toJSONSchema(schema, { target: "draft-7" });
+-      args.push(
+-        "--output-format",
+-        "json",
+-        "--json-schema",
+-        JSON.stringify(jsonSchema),
+-      );
++      args.push("--json-schema", JSON.stringify(jsonSchema));
+     }
+ 
+     args.push(inputPrompt);
+@@ -106,6 +105,10 @@ export class ClaudeStrategy implements IAgentStrategy {
+ 
+     const envelope = parsed as Record<string, unknown>;
+ 
++    // Only treat the output as an envelope when it is one. Plain text that
++    // happens to be JSON (for example {"result": "..."}) passes through.
++    if (envelope.type !== "result") return trimmed;
++
+     if (envelope.structured_output !== undefined) {
+       return JSON.stringify(envelope.structured_output);
+     }

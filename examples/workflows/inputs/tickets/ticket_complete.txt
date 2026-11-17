@@ -1,0 +1,11 @@
+Add retry with backoff to the webhook sender
+
+Objective: retry failed webhook deliveries with exponential backoff so transient 5xx responses stop dropping events.
+
+What to do:
+- Add a retry policy with a maximum of 5 attempts and jittered backoff.
+- Persist the attempt count so retries survive a restart.
+
+Out of scope: do not change the webhook payload format or the signing logic.
+
+How to validate: simulate 503 responses from a test endpoint and confirm delivery succeeds on the third attempt.
