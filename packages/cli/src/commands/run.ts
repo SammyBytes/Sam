@@ -1,5 +1,4 @@
 import { defineCommand } from "citty";
-import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -12,6 +11,7 @@ import {
   tokenize,
 } from "@sam-lang/compiler";
 import { createRuntime } from "@sam-lang/runtime";
+import { cleanupEphemeralFile } from "./ephemeral";
 
 function extractFlowArgs(rawArgs: string[], fileArg: string): string[] {
   const separatorIndex = rawArgs.indexOf("--");
@@ -111,13 +111,7 @@ export default defineCommand({
         console.log(JSON.stringify(result, null, 2));
       }
     } finally {
-      // `recursive` enables maxRetries on Windows for transient lock errors.
-      await rm(tempFile, {
-        force: true,
-        recursive: true,
-        maxRetries: 5,
-        retryDelay: 100,
-      }).catch(() => {});
+      await cleanupEphemeralFile(tempFile);
     }
   },
 });
