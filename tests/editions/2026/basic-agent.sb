@@ -1,0 +1,29 @@
+provider Groq {
+  protocol: "openai-compatible",
+  base_url: env("GROQ_BASE_URL"),
+  api_key: env("GROQ_API_KEY")
+}
+
+schema Answer {
+  text: string,
+  confident: boolean
+}
+
+agent Assistant {
+  provider: Groq,
+  model: "openai/gpt-oss-20b",
+  system_prompt: "Answer the question and return the requested JSON.",
+  max_tokens: 400,
+  timeout: 20,
+  retries: 1
+}
+
+flow main(question: string) {
+  let res = use Assistant<Answer>(question)
+
+  if (!res.ok) {
+    return res
+  }
+
+  return res.value
+}

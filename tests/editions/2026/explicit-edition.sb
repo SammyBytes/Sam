@@ -1,0 +1,57 @@
+edition "2026"
+
+provider Groq {
+  protocol: "openai-compatible",
+  base_url: env("GROQ_BASE_URL"),
+  api_key: env("GROQ_API_KEY"),
+  strict_schema: true
+}
+
+schema QuickCheck {
+  looks_safe: boolean,
+  summary: string
+}
+
+schema DetailedReview {
+  approved: boolean,
+  risk_level: string,
+  summary: string
+}
+
+agent QuickChecker {
+  provider: Groq,
+  model: "openai/gpt-oss-20b",
+  system_prompt: "Return a quick safety assessment as JSON.",
+  max_tokens: 300,
+  timeout: 20,
+  retries: 1
+}
+
+agent DetailedReviewer {
+  provider: Groq,
+  model: "openai/gpt-oss-20b",
+  system_prompt: "Return a detailed review as JSON.",
+  max_tokens: 800,
+  timeout: 45,
+  retries: 2
+}
+
+flow main(diff: string) {
+  let prompt = `Review this diff and report risk:\n${diff}`
+
+  let quick = use QuickChecker<QuickCheck>(prompt)
+  if (!quick.ok) {
+    return quick
+  }
+
+  if (quick.value.looks_safe) {
+    return quick.value.summary
+  }
+
+  let detailed = use DetailedReviewer<DetailedReview>(prompt)
+  if (!detailed.ok) {
+    return detailed
+  }
+
+  return detailed.value
+}
