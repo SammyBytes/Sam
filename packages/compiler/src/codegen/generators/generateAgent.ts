@@ -40,6 +40,21 @@ export function generateAgent(
     | number
     | undefined;
 
+  // Claude Code runner options. They are only emitted for local runners.
+  const permissionMode = getPropertyValue(props.get("permission_mode")) as
+    | string
+    | undefined;
+  const maxTurns = getPropertyValue(props.get("max_turns")) as
+    | number
+    | undefined;
+  const fallbackModelProp = props.get("fallback_model");
+  const allowedToolsProp = props.get("allowed_tools");
+  const disallowedToolsProp = props.get("disallowed_tools");
+  const maxBudgetUsd = getPropertyValue(props.get("max_budget_usd")) as
+    | number
+    | undefined;
+  const bare = getPropertyValue(props.get("bare")) as boolean | undefined;
+
   const configFields: string[] = [`name: ${JSON.stringify(agentNode.name)}`];
 
   if (providerProp !== undefined) {
@@ -75,6 +90,40 @@ export function generateAgent(
 
     if (modelProp !== undefined) {
       configFields.push(`model: ${formatStringOrEnv(modelProp.value)}`);
+    }
+
+    if (permissionMode !== undefined) {
+      configFields.push(`permissionMode: ${JSON.stringify(permissionMode)}`);
+    }
+
+    if (maxTurns !== undefined) {
+      configFields.push(`maxTurns: ${maxTurns}`);
+    }
+
+    if (fallbackModelProp !== undefined) {
+      configFields.push(
+        `fallbackModel: ${formatStringOrEnv(fallbackModelProp.value)}`,
+      );
+    }
+
+    if (allowedToolsProp !== undefined) {
+      configFields.push(
+        `allowedTools: ${formatStringOrEnv(allowedToolsProp.value)}`,
+      );
+    }
+
+    if (disallowedToolsProp !== undefined) {
+      configFields.push(
+        `disallowedTools: ${formatStringOrEnv(disallowedToolsProp.value)}`,
+      );
+    }
+
+    if (maxBudgetUsd !== undefined) {
+      configFields.push(`maxBudgetUsd: ${maxBudgetUsd}`);
+    }
+
+    if (bare !== undefined) {
+      configFields.push(`bare: ${bare}`);
     }
   }
 

@@ -3,6 +3,7 @@ import type { AgentError } from "../errors";
 import { err, ok } from "../result";
 import type { Result } from "../result";
 import type { IAgentStrategy } from "../strategies/agent/agentStrategy";
+import { ClaudeStrategy } from "../strategies/agent/claudeStrategy";
 import { MockStrategy } from "../strategies/agent/mockStrategy";
 import { OpenCodeStrategy } from "../strategies/agent/opencodeStrategy";
 import type { AgentConfig, LocalAgentConfig } from "./agents/agentConfig";
@@ -27,6 +28,7 @@ export type Runtime = {
 const strategyRegistry = new Map<string, IAgentStrategy>([
   ["mock", new MockStrategy()],
   ["opencode", new OpenCodeStrategy()],
+  ["claude", new ClaudeStrategy()],
 ]);
 
 const providerStrategyRegistry = new Map<string, IProviderStrategy>([
@@ -50,8 +52,24 @@ async function executeRunner(
 
   const binary = strategy.getBinaryName();
   const args = strategy.buildArgs(agent, inputPrompt, schema);
+  const result = await agentExecute(agent, binary, args);
 
-  return agentExecute(agent, binary, args);
+  if (!result.ok || !strategy.extractOutput) {
+    return result;
+  }
+
+  try {
+    return ok(strategy.extractOutput(result.value));
+  } catch (error) {
+    return err({
+      code: "EXECUTION_ERROR",
+      agentName: agent.name,
+      runner: agent.runner,
+      exitCode: 0,
+      stderr: error instanceof Error ? error.message : String(error),
+      message: `Agent '${agent.name}' produced an invalid runner response.`,
+    });
+  }
 }
 
 async function executeAgent(

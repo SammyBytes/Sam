@@ -1,4 +1,9 @@
-import { AgentRunner, type AgentRunnerKind } from "@sam-lang/runtime";
+import {
+  AgentRunner,
+  CLAUDE_PERMISSION_MODES,
+  type AgentRunnerKind,
+  type ClaudePermissionMode,
+} from "@sam-lang/runtime";
 import type { AgentNode, AgentPropertyNode, AgentPropertyType } from "../ast";
 import type { IParserContext } from "../types";
 import type { Token } from "../../lexer/tokens";
@@ -21,6 +26,13 @@ const AGENT_PROPERTY_VALIDATORS: Record<string, AgentPropertyValidator> = {
   max_tokens: validatePositiveInteger,
   retries: validateNonNegativeInteger,
   reasoning_effort: validateReasoningEffort,
+  permission_mode: validatePermissionMode,
+  max_turns: validatePositiveInteger,
+  fallback_model: validateStringOrEnv,
+  allowed_tools: validateStringOrEnv,
+  disallowed_tools: validateStringOrEnv,
+  max_budget_usd: validatePositiveNumber,
+  bare: validateBoolean,
 };
 
 export function parseAgent(context: IParserContext): AgentNode {
@@ -243,6 +255,29 @@ function validatePositiveInteger(
   }
 }
 
+function validatePositiveNumber(
+  value: AgentPropertyType,
+  token: Token,
+): void {
+  if (
+    value.type !== "NumberLiteral" ||
+    !Number.isFinite(value.value) ||
+    value.value <= 0
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a positive number value.`,
+    );
+  }
+}
+
+function validateBoolean(value: AgentPropertyType, token: Token): void {
+  if (value.type !== "BooleanLiteral") {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Expected a boolean value.`,
+    );
+  }
+}
+
 function validateNonNegativeInteger(
   value: AgentPropertyType,
   token: Token,
@@ -273,6 +308,25 @@ function validateReasoningEffort(
   ) {
     throw new Error(
       `ValidationError in agent '${token.value}' (line ${token.line}): Invalid 'reasoning_effort'. Expected one of: ${REASONING_EFFORTS.join(", ")}.`,
+    );
+  }
+}
+
+function validatePermissionMode(
+  value: AgentPropertyType,
+  token: Token,
+): void {
+  const isStringOrIdentifier =
+    value.type === "StringLiteral" || value.type === "Identifier";
+
+  if (
+    !isStringOrIdentifier ||
+    !CLAUDE_PERMISSION_MODES.includes(
+      String(value.value) as ClaudePermissionMode,
+    )
+  ) {
+    throw new Error(
+      `ValidationError in agent '${token.value}' (line ${token.line}): Invalid 'permission_mode'. Expected one of: ${CLAUDE_PERMISSION_MODES.join(", ")}.`,
     );
   }
 }

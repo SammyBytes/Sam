@@ -770,3 +770,60 @@ test("reports the exact position of an edition directive that is not first", () 
     /'edition' directive must appear only once at the top of the file \(line 2, column 1\)/,
   );
 });
+
+test("should parse a Claude Code runner agent with runner options", () => {
+  const code = `
+    agent ClaudeReviewer {
+      runner: claude,
+      workspace: ".",
+      model: "sonnet",
+      permission_mode: "acceptEdits",
+      max_turns: 4,
+      fallback_model: "haiku",
+      allowed_tools: "Read, Grep",
+      disallowed_tools: "Bash",
+      max_budget_usd: 2.5,
+      bare: true
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const agent = ast.body[0];
+  expect(agent.type).toBe("AgentDeclaration");
+
+  if (agent.type === "AgentDeclaration") {
+    const props = new Map(
+      agent.properties.map((prop) => [prop.name, prop.value.value]),
+    );
+
+    expect(props.get("runner")).toBe("claude");
+    expect(props.get("permission_mode")).toBe("acceptEdits");
+    expect(props.get("max_turns")).toBe(4);
+    expect(props.get("fallback_model")).toBe("haiku");
+    expect(props.get("allowed_tools")).toBe("Read, Grep");
+    expect(props.get("disallowed_tools")).toBe("Bash");
+    expect(props.get("max_budget_usd")).toBe(2.5);
+    expect(props.get("bare")).toBe(true);
+  }
+});
+
+test("rejects invalid Claude Code runner options", () => {
+  const invalidProperties = [
+    `permission_mode: "root"`,
+    `max_turns: 0`,
+    `max_budget_usd: 0`,
+    `bare: "yes"`,
+  ];
+
+  for (const property of invalidProperties) {
+    const code = `
+      agent ClaudeReviewer {
+        runner: claude,
+        workspace: ".",
+        ${property}
+      }
+    `;
+
+    expect(() => new Parser(tokenize(code)).parse()).toThrow();
+  }
+});

@@ -467,3 +467,53 @@ test("should omit strictSchema when the provider does not enable it", () => {
   );
   expect(output).toContain("maxTokens: 256, retries: 0");
 });
+test("should generate Claude Code runner options for a local agent", () => {
+  const code = `
+    agent ClaudeReviewer {
+      runner: claude,
+      workspace: "./src",
+      model: "sonnet",
+      permission_mode: "acceptEdits",
+      max_turns: 4,
+      fallback_model: "haiku",
+      allowed_tools: "Read, Grep",
+      disallowed_tools: "Bash",
+      max_budget_usd: 2.5,
+      bare: true,
+      reasoning_effort: "high",
+      timeout: 30
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const output = generateCode(ast);
+
+  expect(output).toContain(
+    '{ name: "ClaudeReviewer", runner: "claude", workspace: "./src", model: "sonnet", permissionMode: "acceptEdits", maxTurns: 4, fallbackModel: "haiku", allowedTools: "Read, Grep", disallowedTools: "Bash", maxBudgetUsd: 2.5, bare: true, reasoningEffort: "high", timeout: 30000 }',
+  );
+});
+
+test("should not emit Claude Code runner options for provider agents", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible",
+      base_url: "https://api.groq.com/openai/v1",
+      api_key: "test"
+    }
+
+    agent Reviewer {
+      provider: Groq,
+      model: "test-model",
+      permission_mode: "acceptEdits",
+      max_turns: 4,
+      bare: true
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const output = generateCode(ast);
+
+  expect(output).not.toContain("permissionMode");
+  expect(output).not.toContain("maxTurns");
+  expect(output).not.toContain("bare");
+});
