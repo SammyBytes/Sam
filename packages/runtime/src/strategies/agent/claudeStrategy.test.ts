@@ -30,7 +30,8 @@ function argsFor(
 
 describe("ClaudeStrategy", () => {
   test("uses the claude binary", () => {
-    expect(strategy.getBinaryName()).toBe("claude");
+    // May resolve to the native claude.exe on Windows (see resolveClaudeBinary).
+    expect(strategy.getBinaryName()).toMatch(/claude(\.exe)?$/);
   });
 
   test("runs in print mode with the model and without persisted sessions", () => {

@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { z } from "zod";
 import type { IAgentStrategy } from "./agentStrategy";
 import type { AgentConfig } from "../../engine/agents/agentConfig";
@@ -7,6 +9,29 @@ function splitList(value: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+/**
+ * On Windows, the npm install puts a `claude.cmd` shim first on PATH. Bun
+ * refuses to pass arguments containing cmd special characters to .cmd files,
+ * and the structured-output JSON schema always contains them. Run the native
+ * binary the shim wraps instead.
+ */
+function resolveClaudeBinary(): string {
+  if (process.platform !== "win32") return "claude";
+
+  const found = Bun.which("claude");
+  if (!found || !/\.(cmd|bat)$/i.test(found)) return "claude";
+
+  const native = join(
+    dirname(found),
+    "node_modules",
+    "@anthropic-ai",
+    "claude-code",
+    "bin",
+    "claude.exe",
+  );
+  return existsSync(native) ? native : "claude";
 }
 
 /**
@@ -20,7 +45,7 @@ function splitList(value: string): string[] {
  */
 export class ClaudeStrategy implements IAgentStrategy {
   getBinaryName(): string {
-    return "claude";
+    return resolveClaudeBinary();
   }
 
   buildArgs(
