@@ -1,4 +1,5 @@
 import { defineCommand } from "citty";
+import { dirname, resolve } from "node:path";
 import { generateCode, Parser, tokenize } from "@sam-lang/compiler";
 
 export default defineCommand({
@@ -19,9 +20,10 @@ export default defineCommand({
     },
   },
   async run({ args }) {
-    const source = await Bun.file(args.file).text();
+    const sourcePath = resolve(args.file);
+    const source = await Bun.file(sourcePath).text();
     const ast = new Parser(tokenize(source)).parse();
-    const output = generateCode(ast);
+    const output = generateCode(ast, { sourceDir: dirname(sourcePath) });
 
     if (args.out) {
       await Bun.write(args.out, output);

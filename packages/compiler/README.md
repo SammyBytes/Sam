@@ -17,7 +17,9 @@ execution:
   `schema`, `agent`, `flow`, and `private flow` declarations.
 - `generateCode(ast, options?)` — emits TypeScript with Zod schemas,
   `createRuntime(...)` provider/agent configurations from `@sam-lang/runtime`,
-  and async flow functions. Supports `useGlobalRuntime` for ephemeral execution.
+  and async flow functions. Supports `useGlobalRuntime` for ephemeral execution
+  and `sourceDir` for securely resolving `system_prompt_file` paths relative to
+  the `.sb` file.
 - `resolveEntryFlow(ast, requestedFlow?)` — applies `--flow`, `main()`, and
   single-public-flow entry resolution.
 - `coerceCliArgs(flow, rawArgs, stdinText?)` — validates arity and coerces
@@ -69,8 +71,8 @@ bun test
 Version `0.5.0` is the current bootstrap release candidate. It covers providers, schemas,
 agents, flows, `let` / `if` / `else` / `return`, template literals, safe and
 unsafe agent invocation, `env()` expansion across provider and agent properties,
-HTTP provider agent validation, entry flow resolution, and CLI argument coercion
-used by `sam run`.
+sanitized `system_prompt_file` Markdown loading, HTTP provider agent validation,
+entry flow resolution, and CLI argument coercion used by `sam run`.
 
 Additional provider protocols and richer model integrations are planned for
 `v0.6.0`. The package is scheduled for retirement in `v1.0.0` (self-hosting);

@@ -106,10 +106,17 @@ jobs:
           path: release
           merge-multiple: true
 
+      - name: Generate SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: release/sbom.spdx.json
+
       - name: Generate checksums
         run: |
           cd release
-          sha256sum sam-* > SHA256SUMS
+          sha256sum sam-* sbom.spdx.json > SHA256SUMS
           cat SHA256SUMS
 
       - name: Attest build provenance

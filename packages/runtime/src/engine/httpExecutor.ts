@@ -13,6 +13,11 @@ const MAX_BACKOFF_MS = 30_000;
 // Guardrail: a runaway `retries` value in a flow must not hang the process.
 export const MAX_RETRIES = 5;
 
+function redactSecret(text: string, secret?: string): string {
+  if (!secret) return text;
+  return text.replaceAll(secret, "[REDACTED]");
+}
+
 function parseRetryAfterMs(headerValue: string | null): number | null {
   if (!headerValue) return null;
 
@@ -81,7 +86,10 @@ export async function providerExecute(
           agentName: agent.name,
           providerName: provider.name,
           statusCode: response.status,
-          message: `Provider '${provider.name}' returned HTTP ${response.status} for agent '${agent.name}'.${errorText ? ` Details: ${errorText}` : ""}`,
+          message: redactSecret(
+            `Provider '${provider.name}' returned HTTP ${response.status} for agent '${agent.name}'.${errorText ? ` Details: ${errorText}` : ""}`,
+            provider.apiKey,
+          ),
         });
       }
 
@@ -93,7 +101,10 @@ export async function providerExecute(
           agentName: agent.name,
           providerName: provider.name,
           statusCode: response.status,
-          message: `Provider '${provider.name}' returned an empty or malformed response for agent '${agent.name}'.`,
+          message: redactSecret(
+            `Provider '${provider.name}' returned an empty or malformed response for agent '${agent.name}'.`,
+            provider.apiKey,
+          ),
         });
       }
 
@@ -104,7 +115,10 @@ export async function providerExecute(
           code: "TIMEOUT_ERROR",
           agentName: agent.name,
           timeoutMs: agent.timeout!,
-          message: `Agent '${agent.name}' exceeded timeout of ${agent.timeout}ms.`,
+          message: redactSecret(
+            `Agent '${agent.name}' exceeded timeout of ${agent.timeout}ms.`,
+            provider.apiKey,
+          ),
         });
       }
 
@@ -118,9 +132,12 @@ export async function providerExecute(
         code: "PROVIDER_HTTP_ERROR",
         agentName: agent.name,
         providerName: provider.name,
-        message: `HTTP request to provider '${provider.name}' failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: redactSecret(
+          `HTTP request to provider '${provider.name}' failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          provider.apiKey,
+        ),
       });
     }
   }
@@ -129,6 +146,9 @@ export async function providerExecute(
     code: "PROVIDER_HTTP_ERROR",
     agentName: agent.name,
     providerName: provider.name,
-    message: `Provider '${provider.name}' failed after ${maxRetries + 1} attempts for agent '${agent.name}'.`,
+    message: redactSecret(
+      `Provider '${provider.name}' failed after ${maxRetries + 1} attempts for agent '${agent.name}'.`,
+      provider.apiKey,
+    ),
   });
 }

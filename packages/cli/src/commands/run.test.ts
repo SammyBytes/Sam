@@ -187,6 +187,20 @@ flow main() {
     expect(result.ephemeralFiles, context).toEqual([]);
   });
 
+  test("removes ephemeral sam-run files when the flow throws", async () => {
+    const source = `
+flow main() {
+  return undefinedValue
+}
+`;
+
+    const result = await runSam(source);
+    const context = describeRun(result);
+
+    expect(result.exitCode, context).not.toBe(0);
+    expect(result.ephemeralFiles, context).toEqual([]);
+  });
+
   test("chains one agent's response into another through a template literal", async () => {
     const source = `
 schema Draft {

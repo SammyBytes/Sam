@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/SammyBytes/Sam/releases)
 [![Runtime](https://img.shields.io/badge/runtime-Bun-000000.svg?logo=bun&logoColor=white)](https://bun.sh)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE-MIT)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-green.svg)](./LICENSE-MIT)
 
 Sam is a declarative DSL for orchestrating AI agents with schema-validated outputs. Write typed `.sb` flows and execute them directly with `sam run`, or ship them as portable standalone binaries.
 
@@ -372,6 +372,7 @@ agent Reviewer {
 | `provider` | Yes | Identifier | Name of a declared `provider`. |
 | `model` | Yes | String or `env("VAR")` | Model name sent to the provider. |
 | `system_prompt` | No | String or `env("VAR")` | Instructions prepended to every prompt. |
+| `system_prompt_file` | No | String | Relative `.md` / `.markdown` file loaded as the system prompt. Mutually exclusive with `system_prompt`. |
 | `temperature` | No | Number | Sampling temperature sent with the request. |
 | `max_tokens` | No | Number | Positive integer capping generated output tokens (`max_tokens` in the request payload). |
 | `reasoning_effort` | No | Identifier or string | Reasoning budget hint for models that expose hidden reasoning (`low`, `medium`, or `high`). Lower values leave more of the `max_tokens` budget for the actual output. |
@@ -379,6 +380,15 @@ agent Reviewer {
 | `retries` | No | Number | Non-negative integer specifying retry attempts on transient HTTP `429`/`5xx` or network failures using `Retry-After` and exponential backoff. Defaults to `0`. |
 
 `workspace` is not used by HTTP provider agents and is rejected if present.
+
+`system_prompt_file` is resolved relative to the `.sb` file, not the current
+working directory. It only accepts `.md` or `.markdown` files, must stay inside
+the source directory (including after symlink resolution), is limited to 256
+KiB, and is rejected if it looks binary, is invalid UTF-8, or contains control
+or bidirectional override characters. The file is loaded during compilation and
+embedded in the generated TypeScript, so `sam ast` does not read it. Treat the
+file as trusted operator policy; sanitization does not make untrusted
+instructions safe.
 
 #### Local CLI runner agents
 

@@ -60,6 +60,8 @@ beforeAll(() => {
           });
         case "bad-request":
           return new Response("invalid schema", { status: 400 });
+        case "leaky-key":
+          return new Response("invalid key: sk-test", { status: 401 });
         case "slow":
           await Bun.sleep(150);
           return reply();
@@ -171,6 +173,18 @@ describe("providerExecute retries", () => {
     }
     expect(countFor("bad-request")).toBe(1);
     expect(delays).toHaveLength(0);
+  });
+
+  test("redacts the provider api key from HTTP error bodies", async () => {
+    const { result } = run("leaky-key");
+    const outcome = await result;
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) {
+      expect(outcome.error.code).toBe("PROVIDER_HTTP_ERROR");
+      expect(outcome.error.message).not.toContain("sk-test");
+      expect(outcome.error.message).toContain("[REDACTED]");
+    }
   });
 
   test("returns an error once all retries are exhausted", async () => {
