@@ -537,6 +537,14 @@ bun run build:bin     # Compile the standalone binary to dist/sam (or dist/sam.e
 
 The test suite covers the compiler frontend, code generation, entry resolution, CLI argument coercion, direct execution, failure exit codes, HTTP provider resilience, and ephemeral file cleanup.
 
+### Editions and the edition guard
+
+Sam programs may start with an `edition "2026"` header. When the header is omitted, the parser defaults to `edition "2026"`, so existing programs keep compiling unchanged. Only editions listed in `SUPPORTED_EDITIONS` are accepted; anything else fails with the supported list.
+
+Frozen compatibility fixtures live in [`tests/editions/2026/`](./tests/editions/2026). `basic-agent.sb` relies on the default edition, while `explicit-edition.sb` declares `edition "2026"` and exercises multiple agents, `strict_schema: true`, template interpolation, and `!res.ok` handling. `packages/compiler/src/editionFixtures.test.ts` parses and compiles every fixture as part of the normal test suite, and [`.github/workflows/edition-guard.yml`](./.github/workflows/edition-guard.yml) runs the same deterministic validation on pull requests that touch the compiler, the fixtures, or the guard flow.
+
+[`ci/sam/edition-guard.sb`](./ci/sam/edition-guard.sb) is the Sam flow that audits compiler diffs for edition breakage. On pull requests with the `GROQ_API_KEY` secret it sends a truncated compiler diff to `LanguageArchitect`, posts the `risk_level`, `summary`, and `recommendation` as a single marked comment, and fails the check when `affects_edition_2026` is `true`. Forks and repositories without the secret still run the deterministic fixture validation; only the advisory audit is skipped.
+
 ### Internal automation
 
 Sam runs its own repository automation from [`ci/sam/`](./ci/sam). The deterministic CI job compiles every flow in that directory, so a compiler regression that breaks the repository's own automation fails the normal test job.
