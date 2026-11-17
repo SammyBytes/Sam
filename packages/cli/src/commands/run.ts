@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import {
@@ -59,7 +59,8 @@ export default defineCommand({
     },
   },
   async run({ args, rawArgs }) {
-    const file = Bun.file(args.file);
+    const sourcePath = resolve(args.file);
+    const file = Bun.file(sourcePath);
     if (!(await file.exists())) {
       console.error(`File not found: ${args.file}`);
       process.exit(1);
@@ -80,6 +81,7 @@ export default defineCommand({
 
     const tsCode = generateCode(ast, {
       useGlobalRuntime: true,
+      sourceDir: dirname(sourcePath),
     });
 
     const tempFile = join(tmpdir(), `sam-run-${crypto.randomUUID()}.ts`);

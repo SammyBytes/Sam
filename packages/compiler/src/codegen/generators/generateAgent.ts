@@ -1,5 +1,11 @@
 import type { AgentNode, AgentPropertyNode } from "../../parser/ast";
 import { formatStringOrEnv } from "../helper";
+import { loadSystemPromptFile, SystemPromptFileError } from "../systemPromptFile";
+
+export interface GenerateAgentOptions {
+  /** Absolute directory of the `.sb` source file, used for `system_prompt_file`. */
+  sourceDir?: string;
+}
 
 export function getPropertyValue(
   prop?: AgentPropertyNode,
@@ -8,7 +14,10 @@ export function getPropertyValue(
   return prop.value.value;
 }
 
-export function generateAgent(agentNode: AgentNode): string {
+export function generateAgent(
+  agentNode: AgentNode,
+  options: GenerateAgentOptions = {},
+): string {
   const props = new Map(agentNode.properties.map((prop) => [prop.name, prop]));
 
   const providerProp = props.get("provider");
@@ -16,6 +25,7 @@ export function generateAgent(agentNode: AgentNode): string {
   const workspaceProp = props.get("workspace");
   const modelProp = props.get("model");
   const systemPromptProp = props.get("system_prompt");
+  const systemPromptFileProp = props.get("system_prompt_file");
   const maxTokens = getPropertyValue(props.get("max_tokens")) as
     | number
     | undefined;
@@ -72,6 +82,21 @@ export function generateAgent(agentNode: AgentNode): string {
     configFields.push(
       `systemPrompt: ${formatStringOrEnv(systemPromptProp.value)}`,
     );
+  } else if (systemPromptFileProp !== undefined) {
+    const filePath = getPropertyValue(systemPromptFileProp);
+    if (typeof filePath !== "string" || !filePath) {
+      throw new SystemPromptFileError(
+        `Invalid 'system_prompt_file' in agent '${agentNode.name}'.`,
+      );
+    }
+    if (!options.sourceDir) {
+      throw new SystemPromptFileError(
+        `Agent '${agentNode.name}' uses 'system_prompt_file', but no source directory was provided to codegen.`,
+      );
+    }
+
+    const prompt = loadSystemPromptFile(filePath, options.sourceDir);
+    configFields.push(`systemPrompt: ${JSON.stringify(prompt)}`);
   }
 
   if (temperature !== undefined) {

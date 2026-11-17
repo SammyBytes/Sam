@@ -8,6 +8,11 @@ export interface CodegenOptions {
   zodImportPath?: string;
   runtimeImportPath?: string;
   useGlobalRuntime?: boolean;
+  /**
+   * Absolute directory of the `.sb` source file. Required when an agent uses
+   * `system_prompt_file` so the path can be resolved safely relative to it.
+   */
+  sourceDir?: string;
 }
 
 export const generateCode = (
@@ -46,7 +51,7 @@ export const generateCode = (
       }
 
       case "AgentDeclaration": {
-        const agentCode = generateAgent(node);
+        const agentCode = generateAgent(node, options);
         agents.push(agentCode);
         break;
       }
