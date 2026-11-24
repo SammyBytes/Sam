@@ -78,6 +78,20 @@ async function executeAgent(
   inputPrompt: string,
   schema?: z.ZodTypeAny,
 ): Promise<Result<string, AgentError>> {
+  if (
+    agent.maxInputChars !== undefined &&
+    inputPrompt.length > agent.maxInputChars
+  ) {
+    return err({
+      code: "INPUT_TOO_LARGE",
+      agentName: agent.name,
+      runner: "runner" in agent ? agent.runner : undefined,
+      providerName: "provider" in agent ? agent.provider : undefined,
+      message: `Input prompt length (${inputPrompt.length} chars) exceeds max_input_chars (${agent.maxInputChars}) for agent '${agent.name}'.`,
+      retryable: false,
+    });
+  }
+
   if ("runner" in agent) {
     return executeRunner(agent, inputPrompt, schema);
   }

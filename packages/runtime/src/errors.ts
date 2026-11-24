@@ -57,4 +57,12 @@ export type AgentError =
       providerName: string;
       statusCode?: number;
       message: string;
+    }
+  | {
+      code: "INPUT_TOO_LARGE";
+      agentName: string;
+      runner?: string;
+      providerName?: string;
+      message: string;
+      retryable: false;
     };

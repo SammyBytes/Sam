@@ -716,6 +716,80 @@ test("should reject invalid max_tokens and retries values", () => {
   }
 });
 
+test("should parse the agent max_input_chars property", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+
+    agent Reviewer {
+      provider: Groq
+      model: "openai/gpt-oss-20b"
+      max_input_chars: 8000
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const agent = ast.body[1];
+
+  if (agent?.type === "AgentDeclaration") {
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "max_input_chars",
+      value: { type: "NumberLiteral", value: 8000 },
+    });
+  } else {
+    throw new Error("Expected an agent declaration");
+  }
+});
+
+test("should accept max_input_chars for a local runner agent", () => {
+  const code = `
+    agent LocalReviewer {
+      runner: opencode
+      workspace: "./src"
+      max_input_chars: 12000
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const agent = ast.body[0];
+
+  if (agent?.type === "AgentDeclaration") {
+    expect(agent.properties).toContainEqual({
+      type: "AgentProperty",
+      name: "max_input_chars",
+      value: { type: "NumberLiteral", value: 12000 },
+    });
+  } else {
+    throw new Error("Expected an agent declaration");
+  }
+});
+
+test("should reject invalid max_input_chars values", () => {
+  const invalidCases = [
+    `agent A { provider: Groq, model: "m", max_input_chars: 0 }`,
+    `agent A { provider: Groq, model: "m", max_input_chars: 1.5 }`,
+    `agent A { provider: Groq, model: "m", max_input_chars: "8000" }`,
+    `agent A { provider: Groq, model: "m", max_input_chars: true }`,
+  ];
+
+  for (const agentCode of invalidCases) {
+    const code = `
+      provider Groq {
+        protocol: "openai-compatible"
+        base_url: "https://api.groq.com/openai/v1"
+      }
+      ${agentCode}
+    `;
+
+    expect(() => new Parser(tokenize(code)).parse()).toThrow(
+      /positive integer/,
+    );
+  }
+});
+
 test("should reject a non-boolean strict_schema provider property", () => {
   const code = `
     provider Groq {
