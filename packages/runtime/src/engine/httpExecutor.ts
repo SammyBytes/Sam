@@ -1,4 +1,7 @@
-import type { AgentError } from "../errors";
+import {
+  isContextLimitError,
+  type AgentError,
+} from "../errors";
 import { err, ok, type Result } from "../result";
 import type {
   HttpRequestSpec,
@@ -72,7 +75,10 @@ export async function providerExecute(
       });
 
       if (!response.ok) {
-        if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < maxRetries) {
+        if (
+          RETRYABLE_STATUS_CODES.has(response.status) &&
+          attempt < maxRetries
+        ) {
           const retryAfter = response.headers.get("retry-after");
           await response.body?.cancel();
           const delayMs = computeBackoffMs(attempt, retryAfter);
@@ -81,6 +87,21 @@ export async function providerExecute(
         }
 
         const errorText = await response.text();
+
+        if (isContextLimitError(response.status, errorText)) {
+          return err({
+            code: "CONTEXT_LIMIT_ERROR",
+            agentName: agent.name,
+            providerName: provider.name,
+            statusCode: response.status,
+            message: redactSecret(
+              `Provider '${provider.name}' returned a context limit error (HTTP ${response.status}) for agent '${agent.name}'.${errorText ? ` Details: ${errorText}` : ""}`,
+              provider.apiKey,
+            ),
+            retryable: false,
+          });
+        }
+
         return err({
           code: "PROVIDER_HTTP_ERROR",
           agentName: agent.name,
