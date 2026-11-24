@@ -66,7 +66,24 @@ export function coerceCliArgs(
   return flow.params.map((param, index) => {
     const raw = rawArgs[index]!;
 
-    switch (param.type.kind === "BaseType" ? param.type.name : undefined) {
+    if (param.type.kind === "ArrayType") {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        throw new Error(
+          `Invalid JSON array for parameter '${param.name}': "${raw}".`
+        );
+      }
+      if (!Array.isArray(parsed)) {
+        throw new Error(
+          `Invalid array for parameter '${param.name}': "${raw}".`
+        );
+      }
+      return parsed;
+    }
+
+    switch (param.type.name) {
       case "string":
         return raw;
       case "number": {

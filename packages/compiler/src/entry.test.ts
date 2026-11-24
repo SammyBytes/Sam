@@ -157,6 +157,74 @@ describe("coerceCliArgs", () => {
     expect(coerceCliArgs(flow, ["true", "FALSE"])).toEqual([true, false]);
   });
 
+  test("coerces array arguments from JSON", () => {
+    const flow = makeFlow("main", {
+      params: [
+        {
+          name: "tags",
+          type: {
+            kind: "ArrayType",
+            elementType: { kind: "BaseType", name: "string" },
+          },
+        },
+        {
+          name: "matrix",
+          type: {
+            kind: "ArrayType",
+            elementType: {
+              kind: "ArrayType",
+              elementType: { kind: "BaseType", name: "number" },
+            },
+          },
+        },
+      ],
+    });
+
+    expect(coerceCliArgs(flow, ['["a","b"]', "[[1,2],[3]]"])).toEqual([
+      ["a", "b"],
+      [
+        [1, 2],
+        [3],
+      ],
+    ]);
+  });
+
+  test("rejects invalid JSON for array parameters", () => {
+    const flow = makeFlow("main", {
+      params: [
+        {
+          name: "tags",
+          type: {
+            kind: "ArrayType",
+            elementType: { kind: "BaseType", name: "string" },
+          },
+        },
+      ],
+    });
+
+    expect(() => coerceCliArgs(flow, ["not-json"])).toThrow(
+      'Invalid JSON array for parameter \'tags\': "not-json".',
+    );
+  });
+
+  test("rejects JSON values that are not arrays for array parameters", () => {
+    const flow = makeFlow("main", {
+      params: [
+        {
+          name: "tags",
+          type: {
+            kind: "ArrayType",
+            elementType: { kind: "BaseType", name: "string" },
+          },
+        },
+      ],
+    });
+
+    expect(() => coerceCliArgs(flow, ['{"a":1}'])).toThrow(
+      'Invalid array for parameter \'tags\': "{"a":1}".',
+    );
+  });
+
   test("uses non-TTY stdin text for a single string parameter", () => {
     const flow = makeFlow("main", {
       params: [{ name: "input", type: "string" }],
