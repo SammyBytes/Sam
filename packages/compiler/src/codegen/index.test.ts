@@ -467,6 +467,56 @@ test("should omit strictSchema when the provider does not enable it", () => {
   );
   expect(output).toContain("maxTokens: 256, retries: 0");
 });
+test("should generate the maxInputChars config field when max_input_chars is set", () => {
+  const code = `
+    provider Groq {
+      protocol: "openai-compatible"
+      base_url: "https://api.groq.com/openai/v1"
+    }
+
+    agent Reviewer {
+      provider: Groq
+      model: "openai/gpt-oss-20b"
+      max_input_chars: 8000
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    '{ name: "Reviewer", provider: "Groq", model: "openai/gpt-oss-20b", maxInputChars: 8000 }',
+  );
+});
+
+test("should generate maxInputChars for a local runner agent", () => {
+  const code = `
+    agent LocalReviewer {
+      runner: opencode
+      workspace: "./src"
+      max_input_chars: 12000
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    '{ name: "LocalReviewer", runner: "opencode", workspace: "./src", maxInputChars: 12000 }',
+  );
+});
+
+test("should omit maxInputChars when max_input_chars is not set", () => {
+  const code = `
+    agent LocalReviewer {
+      runner: opencode
+      workspace: "./src"
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).not.toContain("maxInputChars");
+});
+
 test("should generate Claude Code runner options for a local agent", () => {
   const code = `
     agent ClaudeReviewer {

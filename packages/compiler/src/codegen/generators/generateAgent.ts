@@ -1,17 +1,20 @@
 import type { AgentNode, AgentPropertyNode } from "../../parser/ast";
 import { formatStringOrEnv } from "../helper";
-import { loadSystemPromptFile, SystemPromptFileError } from "../systemPromptFile";
+import {
+  loadSystemPromptFile,
+  SystemPromptFileError,
+} from "../systemPromptFile";
 
 export interface GenerateAgentOptions {
   /** Absolute directory of the `.sb` source file, used for `system_prompt_file`. */
   sourceDir?: string;
 }
 
-export function getPropertyValue(
+export function getPropertyValue<TValue>(
   prop?: AgentPropertyNode,
-): string | number | boolean | undefined {
+): TValue | undefined {
   if (!prop) return undefined;
-  return prop.value.value;
+  return prop.value.value as TValue;
 }
 
 export function generateAgent(
@@ -26,34 +29,23 @@ export function generateAgent(
   const modelProp = props.get("model");
   const systemPromptProp = props.get("system_prompt");
   const systemPromptFileProp = props.get("system_prompt_file");
-  const maxTokens = getPropertyValue(props.get("max_tokens")) as
-    | number
-    | undefined;
-  const retries = getPropertyValue(props.get("retries")) as number | undefined;
-  const reasoningEffort = getPropertyValue(props.get("reasoning_effort")) as
-    | string
-    | undefined;
-  const temperature = getPropertyValue(props.get("temperature")) as
-    | number
-    | undefined;
-  const timeoutSec = getPropertyValue(props.get("timeout")) as
-    | number
-    | undefined;
+  const maxTokens = getPropertyValue<number>(props.get("max_tokens"));
+  const maxInputChars = getPropertyValue<number>(props.get("max_input_chars"));
+  const retries = getPropertyValue<number>(props.get("retries"));
+  const reasoningEffort = getPropertyValue<string>(
+    props.get("reasoning_effort"),
+  );
+  const temperature = getPropertyValue<number>(props.get("temperature"));
+  const timeoutSec = getPropertyValue<number>(props.get("timeout"));
 
   // Claude Code runner options. They are only emitted for local runners.
-  const permissionMode = getPropertyValue(props.get("permission_mode")) as
-    | string
-    | undefined;
-  const maxTurns = getPropertyValue(props.get("max_turns")) as
-    | number
-    | undefined;
+  const permissionMode = getPropertyValue<string>(props.get("permission_mode"));
+  const maxTurns = getPropertyValue<number>(props.get("max_turns"));
   const fallbackModelProp = props.get("fallback_model");
   const allowedToolsProp = props.get("allowed_tools");
   const disallowedToolsProp = props.get("disallowed_tools");
-  const maxBudgetUsd = getPropertyValue(props.get("max_budget_usd")) as
-    | number
-    | undefined;
-  const bare = getPropertyValue(props.get("bare")) as boolean | undefined;
+  const maxBudgetUsd = getPropertyValue<number>(props.get("max_budget_usd"));
+  const bare = getPropertyValue<boolean>(props.get("bare"));
 
   const configFields: string[] = [`name: ${JSON.stringify(agentNode.name)}`];
 
@@ -154,6 +146,10 @@ export function generateAgent(
 
   if (maxTokens !== undefined) {
     configFields.push(`maxTokens: ${maxTokens}`);
+  }
+
+  if (maxInputChars !== undefined) {
+    configFields.push(`maxInputChars: ${maxInputChars}`);
   }
 
   if (retries !== undefined) {

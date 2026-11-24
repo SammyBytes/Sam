@@ -24,6 +24,7 @@ export type LocalAgentConfig = {
   temperature?: number;
   /** HTTP providers only. The parser rejects it for the `claude` runner. */
   maxTokens?: number;
+  maxInputChars?: number;
   /** HTTP providers only. The parser rejects it for the `claude` runner. */
   retries?: number;
   reasoningEffort?: "low" | "medium" | "high";
@@ -51,6 +52,7 @@ export type ProviderAgentConfig = {
   timeout?: number;
   temperature?: number;
   maxTokens?: number;
+  maxInputChars?: number;
   retries?: number;
   reasoningEffort?: "low" | "medium" | "high";
 };

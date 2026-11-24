@@ -24,6 +24,7 @@ const AGENT_PROPERTY_VALIDATORS: Record<string, AgentPropertyValidator> = {
   timeout: validateNumber,
   temperature: validateNumber,
   max_tokens: validatePositiveInteger,
+  max_input_chars: validatePositiveInteger,
   retries: validateNonNegativeInteger,
   reasoning_effort: validateReasoningEffort,
   permission_mode: validatePermissionMode,
