@@ -153,6 +153,13 @@ function generateExpression(
         flowNames.has(expression.callee.name);
       return isFlowCall ? `(await ${callee}(${args}))` : `${callee}(${args})`;
     }
+
+    case "ArrayExpression": {
+      const elements = expression.elements
+        .map((el) => generateExpression(el, flowNames))
+        .join(", ");
+      return `[${elements}]`;
+    }
     default:
       throw new Error(`Unsupported expression type: ${expression}`);
   }

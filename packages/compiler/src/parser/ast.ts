@@ -105,7 +105,8 @@ export type ExpressionNode =
   | {
       type: "ParallelExpression";
       expressions: UseExpressionNode[];
-    }; // e.g., parallel(use Agent1<TSchema>("input1"), use Agent2<TSchema>("input2"));
+    } // e.g., parallel(use Agent1<TSchema>("input1"), use Agent2<TSchema>("input2"));
+  | { type: "ArrayExpression"; elements: ExpressionNode[] };
 
 export type UseExpressionNode = {
   type: "UseExpression";

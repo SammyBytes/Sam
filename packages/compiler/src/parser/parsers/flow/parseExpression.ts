@@ -153,6 +153,13 @@ function parseTemplateLiteral(context: IParserContext): ExpressionNode {
   };
 }
 
+
+/**
+ * Parses primary expressions, which can be literals, identifiers, or template literals.
+ * This function serves as the base case for parsing expressions and is called by higher-level parsing functions.
+ * @param context The parser context containing the tokens to be parsed.
+ * @returns An ExpressionNode representing the parsed primary expression.
+ */
 function parsePrimary(context: IParserContext): ExpressionNode {
   const token = context.peek();
 
@@ -162,6 +169,24 @@ function parsePrimary(context: IParserContext): ExpressionNode {
       return {
         type: "Literal",
         value: token.value,
+      };
+    }
+
+    case "LBRACKET": {
+      context.advance(); // consume '['
+      const elements: ExpressionNode[] = [];
+
+      if (context.peek().type !== "RBRACKET") {
+        do {
+          elements.push(parseExpression(context));
+        } while (context.peek().type === "COMMA" && context.advance());
+      }
+
+      context.consume("RBRACKET", "Expected ']' after array elements");
+
+      return {
+        type: "ArrayExpression",
+        elements,
       };
     }
 

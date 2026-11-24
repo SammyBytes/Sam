@@ -139,6 +139,70 @@ test("should reject arrays of undeclared types in schema fields and flow paramet
   );
 });
 
+test("should parse array literals, including empty and nested arrays", () => {
+  const code = `
+    flow Lists() {
+      let values = [1, 2, 3]
+      let empty = []
+      let nested = [[1], [2, 3]]
+      return values
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const flow = ast.body[0];
+
+  if (flow?.type === "FlowDeclaration") {
+    expect(flow.body[0]).toEqual({
+      type: "LetStatement",
+      name: "values",
+      value: {
+        type: "ArrayExpression",
+        elements: [
+          { type: "Literal", value: 1 },
+          { type: "Literal", value: 2 },
+          { type: "Literal", value: 3 },
+        ],
+      },
+    });
+    expect(flow.body[1]).toEqual({
+      type: "LetStatement",
+      name: "empty",
+      value: { type: "ArrayExpression", elements: [] },
+    });
+    expect(flow.body[2]).toEqual({
+      type: "LetStatement",
+      name: "nested",
+      value: {
+        type: "ArrayExpression",
+        elements: [
+          {
+            type: "ArrayExpression",
+            elements: [{ type: "Literal", value: 1 }],
+          },
+          {
+            type: "ArrayExpression",
+            elements: [
+              { type: "Literal", value: 2 },
+              { type: "Literal", value: 3 },
+            ],
+          },
+        ],
+      },
+    });
+  } else {
+    throw new Error("Expected a flow declaration");
+  }
+});
+
+test("should throw SyntaxError on malformed array literals", () => {
+  const missingBracket = `flow Bad() { let values = [1, 2 }`;
+  const doubleComma = `flow Bad() { let values = [1,,2] }`;
+
+  expect(() => new Parser(tokenize(missingBracket)).parse()).toThrow();
+  expect(() => new Parser(tokenize(doubleComma)).parse()).toThrow();
+});
+
 test("should parse LetStatement and ExpressionStatement inside flow body", () => {
   const code = `
     flow Copy(source: string) {

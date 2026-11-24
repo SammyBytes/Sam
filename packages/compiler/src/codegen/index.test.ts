@@ -53,6 +53,23 @@ test("should generate Zod arrays and TypeScript array types for T[] annotations"
   );
 });
 
+test("should generate array literals in flow bodies", () => {
+  const code = `
+    flow Lists() {
+      let values = [1, 2, 3]
+      let empty = []
+      let nested = [[1], [2, 3]]
+      return values
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain("const values = [1, 2, 3];");
+  expect(output).toContain("const empty = [];");
+  expect(output).toContain("const nested = [[1], [2, 3]];");
+});
+
 test("should generate runtime agent config for an agent declaration", () => {
   const code = `
     agent QuickAuditor {
