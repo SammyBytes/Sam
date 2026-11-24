@@ -86,7 +86,7 @@ test("should generate runtime agent config for an agent declaration", () => {
 
   expect(output).not.toContain('import { z } from "zod";');
   expect(output).toContain(
-    'import { createRuntime } from "@sam-lang/runtime";',
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
   );
   expect(output).toContain("const sam = createRuntime([");
   expect(output).toContain(
@@ -114,7 +114,7 @@ test("should generate combined TypeScript for schemas and agents", () => {
 
   expect(output).toContain('import { z } from "zod";');
   expect(output).toContain(
-    'import { createRuntime } from "@sam-lang/runtime";',
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
   );
   expect(output).toContain("export const ReportSchema = z.object({");
   expect(output).toContain("const sam = createRuntime([");
@@ -163,7 +163,7 @@ test("should generate async function for a complete program with schema, agent a
   // Imports and base structure
   expect(output).toContain('import { z } from "zod";');
   expect(output).toContain(
-    'import { createRuntime } from "@sam-lang/runtime";',
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
   );
   expect(output).toContain("export const AuditReportSchema = z.object({");
   expect(output).toContain("const sam = createRuntime([");
@@ -264,7 +264,7 @@ test("should normalize equality operators and generate clean createRuntime([]) w
   const output = generateCode(ast);
 
   expect(output).toContain(
-    'import { createRuntime } from "@sam-lang/runtime";',
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
   );
   expect(output).toContain("const sam = createRuntime([]);");
   expect(output).not.toContain('import { z } from "zod";');
@@ -367,7 +367,7 @@ test("should generate providers array and pass it to createRuntime when provider
   const output = generateCode(ast);
 
   expect(output).toContain(
-    'import { createRuntime } from "@sam-lang/runtime";',
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
   );
   expect(output).toContain("const providers = [");
   expect(output).toContain(
@@ -610,4 +610,21 @@ test("should not emit Claude Code runner options for provider agents", () => {
   expect(output).not.toContain("permissionMode");
   expect(output).not.toContain("maxTurns");
   expect(output).not.toContain("bare");
+});
+
+test("should import chunk from runtime and emit synchronous chunk() calls", () => {
+  const code = `
+    flow SplitDoc(doc: string) {
+      let parts = chunk(doc, 2000)
+      return parts
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
+  );
+  expect(output).toContain("const parts = chunk(doc, 2000);");
+  expect(output).not.toContain("await chunk");
 });
