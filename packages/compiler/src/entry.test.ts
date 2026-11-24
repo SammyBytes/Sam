@@ -1,22 +1,30 @@
 import { describe, expect, test } from "bun:test";
 import { coerceCliArgs, resolveEntryFlow } from "./entry";
-import type { FlowNode, ProgramNode } from "./parser/ast";
+import type { FlowNode, ProgramNode, TypeAnnotation } from "./parser/ast";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+type ParamInput = { name: string; type: string | TypeAnnotation };
+
 function makeFlow(
   name: string,
   options: {
-    params?: Array<{ name: string; type: string }>;
+    params?: ParamInput[];
     isPrivate?: boolean;
   } = {},
 ): FlowNode {
   return {
     type: "FlowDeclaration",
     name,
-    params: options.params ?? [],
+    params: (options.params ?? []).map((param) => ({
+      name: param.name,
+      type:
+        typeof param.type === "string"
+          ? { kind: "BaseType", name: param.type }
+          : param.type,
+    })),
     isPrivate: options.isPrivate ?? false,
     body: [],
   };

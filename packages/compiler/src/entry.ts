@@ -1,4 +1,4 @@
-import type { FlowNode, ProgramNode } from "./parser/ast";
+import type { FlowNode, ProgramNode, TypeAnnotation } from "./parser/ast";
 
 export function resolveEntryFlow(
   ast: ProgramNode,
@@ -49,7 +49,8 @@ export function coerceCliArgs(
   if (
     rawArgs.length === 0 &&
     flow.params.length === 1 &&
-    flow.params[0]?.type === "string" &&
+    flow.params[0]?.type.kind === "BaseType" &&
+    flow.params[0].type.name === "string" &&
     stdinText !== undefined &&
     stdinText.length > 0
   ) {
@@ -65,7 +66,7 @@ export function coerceCliArgs(
   return flow.params.map((param, index) => {
     const raw = rawArgs[index]!;
 
-    switch (param.type) {
+    switch (param.type.kind === "BaseType" ? param.type.name : undefined) {
       case "string":
         return raw;
       case "number": {
@@ -85,6 +86,8 @@ export function coerceCliArgs(
           `Invalid boolean for parameter '${param.name}': "${raw}" (expected 'true' or 'false').`
         );
       }
+      default:
+        return raw;
     }
   });
 }

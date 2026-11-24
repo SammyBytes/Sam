@@ -26,6 +26,33 @@ test("should generate TypeScript with Zod schemas from a .sb program", () => {
   );
 });
 
+test("should generate Zod arrays and TypeScript array types for T[] annotations", () => {
+  const code = `
+    schema Item {
+      name: string
+    }
+
+    schema Report {
+      tags: string[],
+      scores: number[][],
+      items: Item[],
+      flags: boolean[]
+    }
+
+    flow Process(tags: string[], matrix: number[][], items: Item[]) {}
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain("tags: z.array(z.string()),");
+  expect(output).toContain("scores: z.array(z.array(z.number())),");
+  expect(output).toContain("items: z.array(ItemSchema),");
+  expect(output).toContain("flags: z.array(z.boolean()),");
+  expect(output).toContain(
+    "export async function Process(tags: string[], matrix: number[][], items: Item[]) {",
+  );
+});
+
 test("should generate runtime agent config for an agent declaration", () => {
   const code = `
     agent QuickAuditor {

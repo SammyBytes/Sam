@@ -17,7 +17,7 @@ export type CommonTypes =
 export interface FieldNode {
   type: "FieldDefinition";
   name: string; // e.g., "active", "name"
-  fieldType: string; // e.g., "string", "number", "boolean"
+  fieldType: TypeAnnotation; // e.g., "string", "number", "boolean"
 }
 
 export interface SchemaNode {
@@ -56,7 +56,7 @@ export interface AgentNode {
 export interface FlowNode {
   type: "FlowDeclaration";
   name: string; // e.g., "MyFlow"
-  params: Array<{ name: string; type: string }>; // Array of flow parameters with their names and types
+  params: Array<{ name: string; type: TypeAnnotation }>; // Array of flow parameters with their names and types
   isPrivate: boolean; // Indicates if the flow is private
   body: StatementNode[]; // Array of statements that make up the body of the flow
 }
@@ -142,6 +142,14 @@ export interface ProviderNode {
 export const SUPPORTED_EDITIONS = ["2026"] as const;
 export type SamEdition = (typeof SUPPORTED_EDITIONS)[number]; // The edition of the Sam language, e.g., "2026"
 export const DEFAULT_EDITION: SamEdition = "2026"; // The default edition of the Sam language
+
+//-------------
+// Type Annotations for AST Nodes (v0.7.0)
+//-------------
+
+export type TypeAnnotation =
+  | { kind: "BaseType"; name: string }
+  | { kind: "ArrayType"; elementType: TypeAnnotation };
 
 //------------------------------------------------------------------
 // AST Node Types

@@ -2,6 +2,7 @@ import type {
   ExpressionNode,
   FlowNode,
   StatementNode,
+  TypeAnnotation,
 } from "../../../parser/ast";
 
 const MAPPING_BINARY_OPERATOR: Record<string, string> = {
@@ -10,6 +11,14 @@ const MAPPING_BINARY_OPERATOR: Record<string, string> = {
   "<": "<",
   ">": ">",
 };
+
+function emitTsType(type: TypeAnnotation): string {
+  if (type.kind === "ArrayType") {
+    return `${emitTsType(type.elementType)}[]`;
+  }
+
+  return type.name;
+}
 
 function escapeTemplateChunk(value: string): string {
   return value
@@ -27,7 +36,7 @@ export function generateFlow(
 
   const functionParams = flowNode.params
     .map((param) => {
-      const paramType = param.type ? `: ${param.type}` : "";
+      const paramType = param.type ? `: ${emitTsType(param.type)}` : "";
       return `${param.name}${paramType}`;
     })
     .join(", ");

@@ -1,4 +1,36 @@
-import type { AgentNode, ASTNode, FlowNode, ProgramNode } from "./ast";
+import type {
+  AgentNode,
+  ASTNode,
+  FlowNode,
+  ProgramNode,
+  SchemaNode,
+  TypeAnnotation,
+} from "./ast";
+
+const PRIMITIVE_TYPES = new Set(["string", "number", "boolean"]);
+
+function formatTypeAnnotation(type: TypeAnnotation): string {
+  return type.kind === "BaseType"
+    ? type.name
+    : `${formatTypeAnnotation(type.elementType)}[]`;
+}
+
+function validateTypeAnnotation(
+  type: TypeAnnotation,
+  schemas: Set<string>,
+  contextLabel: string,
+): void {
+  if (type.kind === "ArrayType") {
+    validateTypeAnnotation(type.elementType, schemas, contextLabel);
+    return;
+  }
+
+  if (!PRIMITIVE_TYPES.has(type.name) && !schemas.has(type.name)) {
+    throw new Error(
+      `SemanticError: ${contextLabel} uses an undeclared type '${type.name}'.`,
+    );
+  }
+}
 
 export function validateProgram(program: ProgramNode): void {
   const declaredSymbols = new Map<string, string>(); // Name -> Type ("Schema", "Agent", "Provider", "Flow")
@@ -7,6 +39,8 @@ export function validateProgram(program: ProgramNode): void {
   const usedProviders = new Set<string>();
   const agents: AgentNode[] = [];
   const flows: FlowNode[] = [];
+  const schemasNames = new Set<string>();
+  const schemas: SchemaNode[] = [];
 
   // Detect duplicate declarations and collect providers, agents, and flows
   for (const node of program.body) {
@@ -28,6 +62,11 @@ export function validateProgram(program: ProgramNode): void {
     if (node.type === "FlowDeclaration") {
       flows.push(node);
     }
+
+    if (node.type === "SchemaDeclaration") {
+      schemasNames.add(node.name);
+      schemas.push(node);
+    }
   }
 
   // Validate that all agents reference declared providers
@@ -45,6 +84,35 @@ export function validateProgram(program: ProgramNode): void {
       );
     }
     usedProviders.add(providerName);
+  }
+
+  for (const schema of schemas) {    
+    for (const field of schema.fields) {
+
+      if(field.fieldType.kind === "BaseType" && !PRIMITIVE_TYPES.has(field.fieldType.name) && !schemasNames.has(field.fieldType.name)) {
+        throw new Error(
+          `SemanticError: Schema '${schema.name}' field '${field.name}' uses an undeclared type '${field.fieldType.name}'.`,
+        );
+      }
+
+      const typeName = field.fieldType;
+      validateTypeAnnotation(
+        typeName,
+        schemasNames,
+        `Schema '${schema.name}' field '${field.name}'`,
+      );
+    }
+  }
+
+  for (const flow of flows) {
+    for (const param of flow.params) {
+      const typeName = param.type;
+      validateTypeAnnotation(
+        typeName,
+        schemasNames,
+        `Flow '${flow.name}' parameter '${param.name}'`,
+      );
+    }
   }
 
   // Zero providers declared but agents exist
