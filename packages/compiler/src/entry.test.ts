@@ -1,22 +1,30 @@
 import { describe, expect, test } from "bun:test";
 import { coerceCliArgs, resolveEntryFlow } from "./entry";
-import type { FlowNode, ProgramNode } from "./parser/ast";
+import type { FlowNode, ProgramNode, TypeAnnotation } from "./parser/ast";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+type ParamInput = { name: string; type: string | TypeAnnotation };
+
 function makeFlow(
   name: string,
   options: {
-    params?: Array<{ name: string; type: string }>;
+    params?: ParamInput[];
     isPrivate?: boolean;
   } = {},
 ): FlowNode {
   return {
     type: "FlowDeclaration",
     name,
-    params: options.params ?? [],
+    params: (options.params ?? []).map((param) => ({
+      name: param.name,
+      type:
+        typeof param.type === "string"
+          ? { kind: "BaseType", name: param.type }
+          : param.type,
+    })),
     isPrivate: options.isPrivate ?? false,
     body: [],
   };
@@ -147,6 +155,74 @@ describe("coerceCliArgs", () => {
     });
 
     expect(coerceCliArgs(flow, ["true", "FALSE"])).toEqual([true, false]);
+  });
+
+  test("coerces array arguments from JSON", () => {
+    const flow = makeFlow("main", {
+      params: [
+        {
+          name: "tags",
+          type: {
+            kind: "ArrayType",
+            elementType: { kind: "BaseType", name: "string" },
+          },
+        },
+        {
+          name: "matrix",
+          type: {
+            kind: "ArrayType",
+            elementType: {
+              kind: "ArrayType",
+              elementType: { kind: "BaseType", name: "number" },
+            },
+          },
+        },
+      ],
+    });
+
+    expect(coerceCliArgs(flow, ['["a","b"]', "[[1,2],[3]]"])).toEqual([
+      ["a", "b"],
+      [
+        [1, 2],
+        [3],
+      ],
+    ]);
+  });
+
+  test("rejects invalid JSON for array parameters", () => {
+    const flow = makeFlow("main", {
+      params: [
+        {
+          name: "tags",
+          type: {
+            kind: "ArrayType",
+            elementType: { kind: "BaseType", name: "string" },
+          },
+        },
+      ],
+    });
+
+    expect(() => coerceCliArgs(flow, ["not-json"])).toThrow(
+      'Invalid JSON array for parameter \'tags\': "not-json".',
+    );
+  });
+
+  test("rejects JSON values that are not arrays for array parameters", () => {
+    const flow = makeFlow("main", {
+      params: [
+        {
+          name: "tags",
+          type: {
+            kind: "ArrayType",
+            elementType: { kind: "BaseType", name: "string" },
+          },
+        },
+      ],
+    });
+
+    expect(() => coerceCliArgs(flow, ['{"a":1}'])).toThrow(
+      'Invalid array for parameter \'tags\': "{"a":1}".',
+    );
   });
 
   test("uses non-TTY stdin text for a single string parameter", () => {

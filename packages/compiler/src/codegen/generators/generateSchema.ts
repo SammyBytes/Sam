@@ -1,4 +1,4 @@
-import type { SchemaNode } from "../../parser/ast";
+import type { SchemaNode, TypeAnnotation } from "../../parser/ast";
 
 const TYPE_MAPPING: Record<string, string> = {
   string: "z.string()",
@@ -6,10 +6,18 @@ const TYPE_MAPPING: Record<string, string> = {
   boolean: "z.boolean()",
 };
 
+function emitZodType(type: TypeAnnotation): string {
+  if (type.kind === "ArrayType") {
+    return `z.array(${emitZodType(type.elementType)})`;
+  }
+
+  return TYPE_MAPPING[type.name] ?? `${type.name}Schema`;
+}
+
 export function generateSchema(schemaNode: SchemaNode): string {
   const fieldsCode = schemaNode.fields
     .map((field) => {
-      const zodType = TYPE_MAPPING[field.fieldType] || `z.unknown()`;
+      const zodType = emitZodType(field.fieldType);
       return `  ${field.name}: ${zodType},`;
     })
     .join("\n");

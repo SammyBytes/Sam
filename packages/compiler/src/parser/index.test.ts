@@ -36,10 +36,171 @@ test("should parse a private flow with typed parameters", () => {
     expect(flow.name).toBe("Audit");
     expect(flow.isPrivate).toBe(true);
     expect(flow.params).toEqual([
-      { name: "target", type: "string" },
-      { name: "retries", type: "number" },
+      { name: "target", type: { kind: "BaseType", name: "string" } },
+      { name: "retries", type: { kind: "BaseType", name: "number" } },
     ]);
   }
+});
+
+test("should parse array type annotations (T[]) in schema fields and flow parameters", () => {
+  const code = `
+    schema Item {
+      name: string
+    }
+
+    schema Report {
+      tags: string[]
+      scores: number[][]
+      items: Item[]
+    }
+
+    flow Process(tags: string[], matrix: number[][], items: Item[]) {}
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+
+  const report = ast.body[1];
+  if (report?.type === "SchemaDeclaration") {
+    expect(report.fields.map((field) => field.fieldType)).toEqual([
+      {
+        kind: "ArrayType",
+        elementType: { kind: "BaseType", name: "string" },
+      },
+      {
+        kind: "ArrayType",
+        elementType: {
+          kind: "ArrayType",
+          elementType: { kind: "BaseType", name: "number" },
+        },
+      },
+      {
+        kind: "ArrayType",
+        elementType: { kind: "BaseType", name: "Item" },
+      },
+    ]);
+  } else {
+    throw new Error("Expected a schema declaration");
+  }
+
+  const flow = ast.body[2];
+  if (flow?.type === "FlowDeclaration") {
+    expect(flow.params).toEqual([
+      {
+        name: "tags",
+        type: {
+          kind: "ArrayType",
+          elementType: { kind: "BaseType", name: "string" },
+        },
+      },
+      {
+        name: "matrix",
+        type: {
+          kind: "ArrayType",
+          elementType: {
+            kind: "ArrayType",
+            elementType: { kind: "BaseType", name: "number" },
+          },
+        },
+      },
+      {
+        name: "items",
+        type: {
+          kind: "ArrayType",
+          elementType: { kind: "BaseType", name: "Item" },
+        },
+      },
+    ]);
+  } else {
+    throw new Error("Expected a flow declaration");
+  }
+});
+
+test("should throw SyntaxError on malformed array type annotations", () => {
+  const missingBracket = `flow Bad(items: string[) {}`;
+  const unexpectedInnerType = `flow Bad(items: string[number]) {}`;
+
+  expect(() => new Parser(tokenize(missingBracket)).parse()).toThrow(
+    "Expected ']' after '[' in type annotation",
+  );
+  expect(() => new Parser(tokenize(unexpectedInnerType)).parse()).toThrow(
+    "Expected ']' after '[' in type annotation",
+  );
+});
+
+test("should reject arrays of undeclared types in schema fields and flow parameters", () => {
+  const schemaCase = `schema Report { items: Missing[] }`;
+  const flowCase = `flow Process(items: Missing[]) {}`;
+
+  expect(() => new Parser(tokenize(schemaCase)).parse()).toThrow(
+    /undeclared type 'Missing'/,
+  );
+  expect(() => new Parser(tokenize(flowCase)).parse()).toThrow(
+    /undeclared type 'Missing'/,
+  );
+});
+
+test("should parse array literals, including empty and nested arrays", () => {
+  const code = `
+    flow Lists() {
+      let values = [1, 2, 3]
+      let empty = []
+      let nested = [[1], [2, 3]]
+      return values
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const flow = ast.body[0];
+
+  if (flow?.type === "FlowDeclaration") {
+    expect(flow.body[0]).toEqual({
+      type: "LetStatement",
+      name: "values",
+      value: {
+        type: "ArrayExpression",
+        elements: [
+          { type: "Literal", value: 1 },
+          { type: "Literal", value: 2 },
+          { type: "Literal", value: 3 },
+        ],
+      },
+    });
+    expect(flow.body[1]).toEqual({
+      type: "LetStatement",
+      name: "empty",
+      value: { type: "ArrayExpression", elements: [] },
+    });
+    expect(flow.body[2]).toEqual({
+      type: "LetStatement",
+      name: "nested",
+      value: {
+        type: "ArrayExpression",
+        elements: [
+          {
+            type: "ArrayExpression",
+            elements: [{ type: "Literal", value: 1 }],
+          },
+          {
+            type: "ArrayExpression",
+            elements: [
+              { type: "Literal", value: 2 },
+              { type: "Literal", value: 3 },
+            ],
+          },
+        ],
+      },
+    });
+  } else {
+    throw new Error("Expected a flow declaration");
+  }
+});
+
+test("should throw SyntaxError on malformed array literals", () => {
+  const missingBracket = `flow Bad() { let values = [1, 2 }`;
+  const doubleComma = `flow Bad() { let values = [1,,2] }`;
+
+  expect(() => new Parser(tokenize(missingBracket)).parse()).toThrow();
+  expect(() => new Parser(tokenize(doubleComma)).parse()).toThrow();
 });
 
 test("should parse LetStatement and ExpressionStatement inside flow body", () => {
@@ -208,7 +369,7 @@ test("should throw SyntaxError on malformed if statements", () => {
 
 test("should parse MemberExpression for nested property access", () => {
   const code = `
-    flow Inspect(audit: any) {
+    flow Inspect(audit: string) {
       let level = audit.value.risk_level
       return level
     }
@@ -240,7 +401,7 @@ test("should parse MemberExpression for nested property access", () => {
 
 test("should parse UnaryExpression (!) and BinaryExpression (==, !=, <, >)", () => {
   const code = `
-    flow Validate(res: any, count: number) {
+    flow Validate(res: string, count: number) {
       if (!res.ok) {
         return false
       }

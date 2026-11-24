@@ -1,6 +1,7 @@
 import type { FlowNode } from "../ast";
 import type { IParserContext } from "../types";
 import { parseBlock } from "./flow/parseBlock";
+import { parseTypeAnnotation } from "./flow/parseTypeAnnotation";
 
 export function parseFlow(context: IParserContext): FlowNode {
   const isPrivate = context.peek().type === "PRIVATE";
@@ -18,9 +19,10 @@ export function parseFlow(context: IParserContext): FlowNode {
   while (!context.isAtEnd() && context.peek().type !== "RPAREN") {
     const paramToken = context.consume("IDENTIFIER", "Expected parameter name");
     context.consume("COLON", "Expected ':' after parameter name");
-    const typeToken = context.consume("IDENTIFIER", "Expected parameter type");
 
-    params.push({ name: paramToken.value, type: typeToken.value });
+    const typeAnnotation = parseTypeAnnotation(context);
+
+    params.push({ name: paramToken.value, type: typeAnnotation });
 
     if (context.peek().type !== "RPAREN") {
       context.consume("COMMA", "Expected ',' between parameters");

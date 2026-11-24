@@ -21,6 +21,8 @@ export type TokenType =
   | "RBRACE"
   | "LPAREN"
   | "RPAREN"
+  | "LBRACKET"
+  | "RBRACKET"
   | "COLON"
   | "SEMICOLON"
   | "DOT"
@@ -78,6 +80,8 @@ export const SINGLE_CHAR_TOKENS: Record<string, TokenType> = {
   "}": "RBRACE",
   "(": "LPAREN",
   ")": "RPAREN",
+  "[": "LBRACKET",
+  "]": "RBRACKET",
 
   ":": "COLON",
   ";": "SEMICOLON",
