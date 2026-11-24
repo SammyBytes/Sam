@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { coerceCliArgs, resolveEntryFlow } from "./entry";
 import type { FlowNode, ProgramNode, TypeAnnotation } from "./parser/ast";
+import { generateCode } from "./codegen";
+import { tokenize } from "./lexer";
+import { Parser } from "./parser";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -326,4 +329,21 @@ describe("coerceCliArgs", () => {
       'Invalid boolean for parameter \'enabled\': "yes" (expected \'true\' or \'false\').',
     );
   });
+});
+
+test("should import chunk from runtime and emit synchronous chunk() calls", () => {
+  const code = `
+    flow SplitDoc(doc: string) {
+      let parts = chunk(doc, 2000)
+      return parts
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
+  );
+  expect(output).toContain("const parts = chunk(doc, 2000);");
+  expect(output).not.toContain("await chunk");
 });
