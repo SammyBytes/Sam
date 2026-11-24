@@ -1,19 +1,14 @@
 import type {
   AgentNode,
-  ASTNode,
+  ExpressionNode,
   FlowNode,
   ProgramNode,
   SchemaNode,
+  StatementNode,
   TypeAnnotation,
 } from "./ast";
 
 const PRIMITIVE_TYPES = new Set(["string", "number", "boolean"]);
-
-function formatTypeAnnotation(type: TypeAnnotation): string {
-  return type.kind === "BaseType"
-    ? type.name
-    : `${formatTypeAnnotation(type.elementType)}[]`;
-}
 
 function validateTypeAnnotation(
   type: TypeAnnotation,
@@ -32,8 +27,83 @@ function validateTypeAnnotation(
   }
 }
 
+function validateStatements(
+  statements: StatementNode[],
+  flowName: string,
+): void {
+  for (const stmt of statements) {
+    switch (stmt.type) {
+      case "LetStatement":
+        validateExpression(stmt.value, flowName);
+        break;
+      case "ExpressionStatement":
+        validateExpression(stmt.expression, flowName);
+        break;
+      case "ReturnStatement":
+        if (stmt.value) validateExpression(stmt.value, flowName);
+        break;
+      case "IfStatement":
+        validateExpression(stmt.condition, flowName);
+        validateStatements(stmt.thenBranch, flowName);
+        if (stmt.elseBranch) validateStatements(stmt.elseBranch, flowName);
+        break;
+    }
+  }
+}
+
+function validateExpression(expr: ExpressionNode, flowName: string): void {
+  switch (expr.type) {
+    case "CallExpression": {
+      if (expr.callee.type === "Identifier" && expr.callee.name === "chunk") {
+        if (expr.arguments.length !== 2) {
+          throw new Error(
+            `SemanticError: Builtin 'chunk' in flow '${flowName}' expects 2 arguments (text, maxChars), got ${expr.arguments.length}.`,
+          );
+        }
+        const maxCharsArg = expr.arguments[1];
+        if (maxCharsArg?.type === "Literal") {
+          if (
+            typeof maxCharsArg.value !== "number" ||
+            !Number.isInteger(maxCharsArg.value) ||
+            maxCharsArg.value <= 0
+          ) {
+            throw new Error(
+              `SemanticError: Builtin 'chunk' in flow '${flowName}' expects a positive integer for 'maxChars'.`,
+            );
+          }
+        }
+      }
+      validateExpression(expr.callee, flowName);
+      for (const arg of expr.arguments) validateExpression(arg, flowName);
+      break;
+    }
+    case "ArrayExpression":
+      for (const el of expr.elements) validateExpression(el, flowName);
+      break;
+    case "BinaryExpression":
+      validateExpression(expr.left, flowName);
+      validateExpression(expr.right, flowName);
+      break;
+    case "UnaryExpression":
+      validateExpression(expr.argument, flowName);
+      break;
+    case "MemberExpression":
+      validateExpression(expr.object, flowName);
+      break;
+    case "TemplateLiteral":
+      for (const sub of expr.expressions) validateExpression(sub, flowName);
+      break;
+    case "UseExpression":
+      validateExpression(expr.inputPrompt, flowName);
+      break;
+    case "ParallelExpression":
+      for (const sub of expr.expressions) validateExpression(sub, flowName);
+      break;
+  }
+}
+
 export function validateProgram(program: ProgramNode): void {
-  const declaredSymbols = new Map<string, string>(); // Name -> Type ("Schema", "Agent", "Provider", "Flow")
+  const declaredSymbols = new Map<string, string>([["chunk", "Builtin"]]);
 
   const providers = new Set<string>();
   const usedProviders = new Set<string>();
@@ -42,9 +112,8 @@ export function validateProgram(program: ProgramNode): void {
   const schemasNames = new Set<string>();
   const schemas: SchemaNode[] = [];
 
-  // Detect duplicate declarations and collect providers, agents, and flows
   for (const node of program.body) {
-    const kind = node.type.replace("Declaration", ""); // e.g., "SchemaDeclaration" -> "Schema"
+    const kind = node.type.replace("Declaration", "");
     if (declaredSymbols.has(node.name)) {
       const existingKind = declaredSymbols.get(node.name);
       throw new Error(
@@ -53,29 +122,20 @@ export function validateProgram(program: ProgramNode): void {
     }
     declaredSymbols.set(node.name, kind);
 
-    if (node.type === "ProviderDeclaration") {
-      providers.add(node.name);
-    }
-    if (node.type === "AgentDeclaration") {
-      agents.push(node);
-    }
-    if (node.type === "FlowDeclaration") {
-      flows.push(node);
-    }
-
+    if (node.type === "ProviderDeclaration") providers.add(node.name);
+    if (node.type === "AgentDeclaration") agents.push(node);
+    if (node.type === "FlowDeclaration") flows.push(node);
     if (node.type === "SchemaDeclaration") {
       schemasNames.add(node.name);
       schemas.push(node);
     }
   }
 
-  // Validate that all agents reference declared providers
   for (const agent of agents) {
     const providerProp = agent.properties.find(
       (prop) => prop.name === "provider",
     );
-
-    if (!providerProp) continue; // No provider property, skip validation for this agent
+    if (!providerProp) continue;
 
     const providerName = String(providerProp.value.value);
     if (!providers.has(providerName)) {
@@ -86,18 +146,10 @@ export function validateProgram(program: ProgramNode): void {
     usedProviders.add(providerName);
   }
 
-  for (const schema of schemas) {    
+  for (const schema of schemas) {
     for (const field of schema.fields) {
-
-      if(field.fieldType.kind === "BaseType" && !PRIMITIVE_TYPES.has(field.fieldType.name) && !schemasNames.has(field.fieldType.name)) {
-        throw new Error(
-          `SemanticError: Schema '${schema.name}' field '${field.name}' uses an undeclared type '${field.fieldType.name}'.`,
-        );
-      }
-
-      const typeName = field.fieldType;
       validateTypeAnnotation(
-        typeName,
+        field.fieldType,
         schemasNames,
         `Schema '${schema.name}' field '${field.name}'`,
       );
@@ -106,16 +158,15 @@ export function validateProgram(program: ProgramNode): void {
 
   for (const flow of flows) {
     for (const param of flow.params) {
-      const typeName = param.type;
       validateTypeAnnotation(
-        typeName,
+        param.type,
         schemasNames,
         `Flow '${flow.name}' parameter '${param.name}'`,
       );
     }
+    validateStatements(flow.body, flow.name);
   }
 
-  // Zero providers declared but agents exist
   for (const provider of providers) {
     if (!usedProviders.has(provider)) {
       throw new Error(

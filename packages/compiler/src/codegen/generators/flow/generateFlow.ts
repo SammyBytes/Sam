@@ -145,13 +145,8 @@ function generateExpression(
     }
     case "CallExpression": {
       const callee = generateExpression(expression.callee, flowNames);
-      const args = expression.arguments
-        .map((arg) => generateExpression(arg, flowNames))
-        .join(", ");
-      const isFlowCall =
-        expression.callee.type === "Identifier" &&
-        flowNames.has(expression.callee.name);
-      return isFlowCall ? `(await ${callee}(${args}))` : `${callee}(${args})`;
+
+      return generateFlowFunctionCall(callee, expression.arguments, flowNames);
     }
 
     case "ArrayExpression": {
@@ -163,4 +158,19 @@ function generateExpression(
     default:
       throw new Error(`Unsupported expression type: ${expression}`);
   }
+}
+
+function generateFlowFunctionCall(
+  flowName: string,
+  args: ExpressionNode[],
+  flowNames: Set<string> = new Set(),
+): string {
+  const argsCode = args
+    .map((arg) => generateExpression(arg, flowNames))
+    .join(", ");
+
+  const isFlowCall = flowNames.has(flowName);
+  return isFlowCall
+    ? `(await ${flowName}(${argsCode}))`
+    : `${flowName}(${argsCode})`;
 }

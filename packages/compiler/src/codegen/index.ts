@@ -96,7 +96,7 @@ export const generateCode = (
     }
     if (needsRuntime) {
       imports.push(
-        `const { createRuntime } = globalThis as unknown as { createRuntime: typeof import("@sam-lang/runtime").createRuntime };`,
+        `const { createRuntime, chunk } = globalThis as unknown as { createRuntime: typeof import("@sam-lang/runtime").createRuntime, chunk: typeof import("@sam-lang/runtime").chunk };`,
       );
     }
   } else {
@@ -108,7 +108,7 @@ export const generateCode = (
     }
     if (needsRuntime) {
       imports.push(
-        `import { createRuntime } from ${JSON.stringify(runtimeSpecifier)};`,
+        `import { createRuntime, chunk } from ${JSON.stringify(runtimeSpecifier)};`,
       );
     }
   }
