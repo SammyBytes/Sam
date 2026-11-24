@@ -5,6 +5,7 @@ export * from "./errors";
 export * from "./types";
 
 export * from "./result";
+export * from "./builtins/chunk";
 
 export type { IAgentStrategy } from "./strategies/agent/agentStrategy";
 
