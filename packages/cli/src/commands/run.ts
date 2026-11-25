@@ -10,7 +10,7 @@ import {
   resolveEntryFlow,
   tokenize,
 } from "@sam-lang/compiler";
-import { createRuntime } from "@sam-lang/runtime";
+import { chunk, createRuntime } from "@sam-lang/runtime";
 import { cleanupEphemeralFile } from "./ephemeral";
 
 function extractFlowArgs(rawArgs: string[], fileArg: string): string[] {
@@ -87,7 +87,7 @@ export default defineCommand({
     const tempFile = join(tmpdir(), `sam-run-${crypto.randomUUID()}.ts`);
 
     try {
-      Object.assign(globalThis, { z, createRuntime });
+      Object.assign(globalThis, { z, createRuntime, chunk });
       await Bun.write(tempFile, tsCode);
       const mod = await import(pathToFileURL(tempFile).href);
       const result = await mod[entryFlow.name](...typedArgs);
