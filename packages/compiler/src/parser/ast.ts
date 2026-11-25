@@ -70,7 +70,10 @@ export type StatementNode =
       elseBranch?: StatementNode[];
     } // e.g., if (x > 0) { ... } else { ... }
   | { type: "ReturnStatement"; value?: ExpressionNode } // e.g., return x;
-  | { type: "ExpressionStatement"; expression: ExpressionNode }; // e.g., use MyAgent<TSchema>("input");
+  | { type: "ExpressionStatement"; expression: ExpressionNode } // e.g., use MyAgent<TSchema>("input");
+  | ForStatementNode
+  | BreakStatementNode
+  | ContinueStatementNode;
 
 export type ExpressionNode =
   | { type: "Identifier"; name: string } // e.g., x
@@ -170,14 +173,7 @@ export interface ContinueStatementNode {
 // AST Node Types
 //------------------------------------------------------------------
 
-export type ASTNode =
-  | SchemaNode
-  | AgentNode
-  | FlowNode
-  | ProviderNode
-  | ForStatementNode
-  | BreakStatementNode
-  | ContinueStatementNode;
+export type ASTNode = SchemaNode | AgentNode | FlowNode | ProviderNode;
 
 export interface ProgramNode {
   type: "Program";
