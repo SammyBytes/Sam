@@ -1,7 +1,7 @@
 # Security and Data Handling
 
 This document describes how Sam handles source code, credentials, prompts, model
-output, and network traffic in the current implementation (`v0.5.0`). Every
+output, and network traffic in the current implementation (`v0.6.0`). Every
 statement below is grounded in the source under `packages/`, `ci/sam/`, and
 `.github/workflows/`. Where a guarantee is not enforced by code or not covered
 by tests, it is called out explicitly.

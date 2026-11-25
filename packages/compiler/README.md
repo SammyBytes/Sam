@@ -1,6 +1,6 @@
 # @sam-lang/compiler
 
-The **bootstrap TypeScript compiler** for the Sam (`.sb`) DSL, version `0.5.0`.
+The **bootstrap TypeScript compiler** for the Sam (`.sb`) DSL, version `0.6.0`.
 
 > **Temporary toolchain:** this package is a bootstrap implementation used to
 > develop Sam while the language is young. It will be **deprecated and retired
@@ -14,7 +14,8 @@ execution:
 
 - `tokenize(source)` — lexer with line/column tracking.
 - `Parser` — recursive-descent parser producing a typed AST for `provider`,
-  `schema`, `agent`, `flow`, and `private flow` declarations.
+  `schema`, `agent`, `flow`, and `private flow` declarations, including
+  sequential `for` loops with `break` and `continue`.
 - `generateCode(ast, options?)` — emits TypeScript with Zod schemas,
   `createRuntime(...)` provider/agent configurations from `@sam-lang/runtime`,
   and async flow functions. Supports `useGlobalRuntime` for ephemeral execution
@@ -44,7 +45,7 @@ Check the CLI version:
 
 ```bash
 bun run sam --version
-# 0.5.0
+# 0.6.0
 ```
 
 Or import the API programmatically:
@@ -68,12 +69,14 @@ bun test
 
 ## Status
 
-Version `0.5.0` is the current bootstrap release candidate. It covers providers, schemas,
-agents, flows, `let` / `if` / `else` / `return`, template literals, safe and
-unsafe agent invocation, `env()` expansion across provider and agent properties,
-sanitized `system_prompt_file` Markdown loading, HTTP provider agent validation,
-entry flow resolution, and CLI argument coercion used by `sam run`.
+Version `0.6.0` is the current bootstrap release candidate. It covers providers, schemas,
+agents, flows, `let` / `if` / `else` / `return`, `for` / `break` / `continue`,
+template literals, array types and literals, the `chunk()` runtime builtin,
+`max_input_chars` prompt limits, safe and unsafe agent invocation, `env()`
+expansion across provider and agent properties, sanitized `system_prompt_file`
+Markdown loading, HTTP provider agent validation, entry flow resolution, and CLI
+argument coercion used by `sam run`.
 
 Additional provider protocols and richer model integrations are planned for
-`v0.6.0`. The package is scheduled for retirement in `v1.0.0` (self-hosting);
+`v0.8.0`. The package is scheduled for retirement in `v1.0.0` (self-hosting);
 until then, it remains the supported way to compile `.sb` files.

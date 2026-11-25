@@ -9,4 +9,4 @@ export * from "./builtins/chunk";
 
 export type { IAgentStrategy } from "./strategies/agent/agentStrategy";
 
-export const VERSION = Bun.env.SAM_VERSION || "0.5.0";
+export const VERSION = Bun.env.SAM_VERSION || "0.6.0";
