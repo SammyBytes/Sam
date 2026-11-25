@@ -167,3 +167,37 @@ test("Should tokenize a provider definition with env()", () => {
   expect(tokens[envIndex + 2]!.value).toBe("GROQ_API_KEY");
   expect(tokens[envIndex + 3]!.type).toBe("RPAREN");
 });
+
+test("should tokenize for, in, break, and continue keywords", () => {
+  const code = `for item in data { if (i == 5) { break } if (i == 7) { continue } }`;
+  const tokens = tokenize(code);
+
+  expect(tokens[0]!.type).toBe("FOR");
+  expect(tokens[0]!.value).toBe("for");
+
+  const inToken = tokens.find((t) => t.type === "IN");
+  const breakToken = tokens.find((t) => t.type === "BREAK");
+  const continueToken = tokens.find((t) => t.type === "CONTINUE");
+
+  expect(inToken).toBeDefined();
+  expect(inToken!.value).toBe("in");
+
+  expect(breakToken).toBeDefined();
+  expect(breakToken!.value).toBe("break");
+
+  expect(continueToken).toBeDefined();
+  expect(continueToken!.value).toBe("continue");
+});
+
+test("should tokenize identifiers starting with loop keywords as IDENTIFIER", () => {
+  const code = `format input breakfast continued`;
+  const tokens = tokenize(code);
+
+  const identifiers = tokens.filter((t) => t.type === "IDENTIFIER");
+  expect(identifiers.map((t) => t.value)).toEqual([
+    "format",
+    "input",
+    "breakfast",
+    "continued",
+  ]);
+});

@@ -36,6 +36,10 @@ export type TokenType =
   | "TEMPLATE_HEAD" // `Hi ${
   | "TEMPLATE_MIDDLE" // , had ${
   | "TEMPLATE_TAIL" //  alerts`
+  | "FOR"
+  | "BREAK"
+  | "CONTINUE"
+  | "IN"
   | "EOF";
 
 export interface Token {
@@ -62,6 +66,10 @@ export const KEYWORDS: Record<string, TokenType> = {
   if: "IF",
   else: "ELSE",
   return: "RETURN",
+  for: "FOR",
+  break: "BREAK",
+  continue: "CONTINUE",
+  in: "IN",
 };
 
 // Define a mapping of two-character tokens to their corresponding token types
