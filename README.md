@@ -1,6 +1,6 @@
 # Sam (`.sb`)
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/SammyBytes/Sam/releases)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/SammyBytes/Sam/releases)
 [![Runtime](https://img.shields.io/badge/runtime-Bun-000000.svg?logo=bun&logoColor=white)](https://bun.sh)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-green.svg)](./LICENSE-MIT)
 
@@ -15,7 +15,7 @@ Sam treats agent orchestration as a language problem, not a shell-script problem
 - **Providers** — connection details and protocol capabilities for OpenAI-compatible HTTP APIs.
 - **Schemas** — strict contracts for the data an agent must return.
 - **Agents** — executors backed by either a local CLI runner or an HTTP provider, with a prompt, timeout, token limits, and retry policies.
-- **Flows** — typed procedures with variables, conditionals, early returns, and safe or unsafe agent invocation.
+- **Flows** — typed procedures with variables, conditionals, sequential `for` loops, early returns, and safe or unsafe agent invocation.
 
 The toolchain is built with **Bun**, **TypeScript**, **Citty**, and **Zod**. Programs are parsed into a typed AST, emitted as temporary TypeScript, validated at runtime, and executed through the `@sam-lang/runtime` SDK.
 
@@ -209,7 +209,7 @@ mkdir -p ~/.local/bin
 cp dist/sam ~/.local/bin/sam
 
 sam --version
-# 0.5.0
+# 0.6.0
 
 ```
 
@@ -378,6 +378,7 @@ agent Reviewer {
 | `reasoning_effort` | No | Identifier or string | Reasoning budget hint for models that expose hidden reasoning (`low`, `medium`, or `high`). Lower values leave more of the `max_tokens` budget for the actual output. |
 | `timeout` | No | Number | Request timeout in seconds. The runtime converts it to milliseconds. |
 | `retries` | No | Number | Non-negative integer specifying retry attempts on transient HTTP `429`/`5xx` or network failures using `Retry-After` and exponential backoff. Defaults to `0`. |
+| `max_input_chars` | No | Number | Positive integer cap on the input prompt length. Longer prompts fail with `INPUT_TOO_LARGE` before the request is sent. The system prompt is not counted. |
 
 `workspace` is not used by HTTP provider agents and is rejected if present.
 
@@ -410,6 +411,7 @@ agent ReleaseSummarizer {
 | `system_prompt` | No | String or `env("VAR")` | Instructions prepended to every prompt. |
 | `model` | No | String or `env("VAR")` | Model passed to the runner. |
 | `timeout` | No | Number | Execution timeout in seconds. The runtime converts it to milliseconds. |
+| `max_input_chars` | No | Number | Positive integer cap on the input prompt length. Longer prompts fail with `INPUT_TOO_LARGE` before the process is spawned. The system prompt is not counted. |
 
 ### Environment variables
 
@@ -466,6 +468,61 @@ flow main(input: string) {
 ```
 
 Template literals support `${expression}` interpolation using identifiers, member access, and flow calls. A template without interpolation is treated as a plain string.
+
+### Chunking and loops
+
+`chunk(text, maxChars)` splits a long string into an ordered array of pieces, preferring whitespace boundaries and only hard-cutting when a single token exceeds the limit. It is a synchronous runtime builtin, so the compiler imports it from `@sam-lang/runtime` automatically and does not wrap it in `await`.
+
+`for <item> in <iterable>` iterates sequentially over an array or any iterable. Use `break` to stop early and `continue` to skip the rest of the current iteration. Both statements are only valid inside a loop, and the loop variable is scoped to the loop body.
+
+```sb
+schema Finding {
+  severity: string,
+  summary: string
+}
+
+agent ChunkAuditor {
+  runner: mock,
+  workspace: ".",
+  max_input_chars: 8000
+}
+
+flow main(doc: string) {
+  for part in chunk(doc, 2000) {
+    let finding = use ChunkAuditor<Finding>(part)
+
+    if (!finding.ok) {
+      continue
+    }
+
+    if (finding.value.severity == "critical") {
+      return finding
+    }
+
+    if (finding.value.severity == "low") {
+      continue
+    }
+  }
+
+  return "no critical findings"
+}
+```
+
+The iterable can also be a variable that already holds an array:
+
+```sb
+flow ReviewAll(chunks: string[]) {
+  for part in chunks {
+    let finding = use ChunkAuditor<Finding>(part)
+
+    if (!finding.ok) {
+      break
+    }
+  }
+
+  return "done"
+}
+```
 
 ### Agent invocation
 
@@ -571,16 +628,20 @@ gh attestation verify sam-linux-x64 --repo SammyBytes/Sam
 
 * **v0.4.0 — Direct Execution** *(Done)*: `sam run` with positional arguments and stdin pipelines, smart entry point resolution, standalone compiled binaries for Linux/macOS/Windows, tag-driven releases, and guaranteed temporary-file cleanup.
 * **v0.5.0 — Providers** *(Done)*: top-level `provider` declarations, OpenAI-compatible HTTP execution, `env()` expansion, `strict_schema` structured outputs, native `retries` with `Retry-After` backoff, `max_tokens` limits, `reasoning_effort` budgets, and full backward compatibility with local `opencode` and `mock` runners.
-* **v0.6.0 — Integrations & Analyzer** *(Next)*: additional provider protocols, richer `model` configuration, webhook triggers, contract validation loops, a compiler-level `sam check` analyzer for best-practice warnings, and a repository-level technical whitepaper.
-* **Claude Code runner hardening** *(Planned, v0.6.0)*: the `claude` runner (`runner: claude`, branch `feat/claude-code-runner`) is functional for structured and `use unsafe` calls on Windows, but needs three follow-ups tracked as issues: [#18](https://github.com/SammyBytes/Sam/issues/18) a `RunnerPool` that reuses and cleans up processes, [#19](https://github.com/SammyBytes/Sam/issues/19) explicit DSL timeout units, and [#20](https://github.com/SammyBytes/Sam/issues/20) an explicit permissions block for models, workspace writes and authentication. A small cost benchmark found about $0.08 of fixed overhead per separate `claude -p` call; batching six reviews into one call cost about one fifth of six separate calls, while `haiku` was not cheaper per call than `sonnet` in that run.
-* **v0.8.0 — Deeper Analysis** *(Planned)*: analyzer output as JSON, project-level rule configuration, inline suppressions (which require comment syntax in the lexer), an extensible model capability table, editor/CI integrations, and a website edition of the whitepaper maintained as the project's long-form history. Warnings stay non-blocking by default; `sam check --strict` promotes them to errors.
+* **v0.6.0 — Chunking & Sequential Iteration** *(Done)*: `max_input` context safeguards, native `chunk(text, maxChars)` splitting builtin in `@sam-lang/runtime`, and sequential `for <item> in <iterable>` loops with `break`, `continue`, and loop-scope validation.
+* **v0.7.0 — Immutable Collection & Bounded Concurrency** *(Next)*: `for` expressions with `yield` for immutable result collection (`let results = for ...`), ordered bounded concurrency (`for ... parallel(N)` with optional `unordered` mode), and structured fan-out `parallel { ... }` blocks.
+* **v0.8.0 — Integrations & Analyzer** *(Planned)*: additional provider protocols, richer `model` configuration, webhook triggers, contract validation loops, a compiler-level `sam check` analyzer for best-practice warnings, and a repository-level technical whitepaper.
+* **Claude Code runner hardening** *(Planned, v0.8.0)*: the `claude` runner (`runner: claude`, branch `feat/claude-code-runner`) is functional for structured and `use unsafe` calls on Windows, but needs three follow-ups tracked as issues: [#18](https://github.com/SammyBytes/Sam/issues/18) a `RunnerPool` that reuses and cleans up processes, [#19](https://github.com/SammyBytes/Sam/issues/19) explicit DSL timeout units, and [#20](https://github.com/SammyBytes/Sam/issues/20) an explicit permissions block for models, workspace writes and authentication. A small cost benchmark found about $0.08 of fixed overhead per separate `claude -p` call; batching six reviews into one call cost about one fifth of six separate calls, while `haiku` was not cheaper per call than `sonnet` in that run.
+* **v0.9.0 — Deeper Analysis** *(Planned)*: analyzer output as JSON, project-level rule configuration, inline suppressions (which require comment syntax in the lexer), an extensible model capability table, editor/CI integrations, and a website edition of the whitepaper maintained as the project's long-form history. Warnings stay non-blocking by default; `sam check --strict` promotes them to errors.
+* **v0.10.0 — Sam Studio** *(Planned)*: a low-code visual canvas and flow inspector powered by the JSON AST/analyzer for visually authoring, stepping through, debugging, and exporting `.sb` pipelines.
+* **v0.11.0 — Agent Harness & Embedded Runtime (Experimental)** *(Planned)*: initial agent harness foundations (deterministic fixtures, trace replay, and assertion suites for `.sb` flows) alongside an experimental bare-metal/embedded runtime target to run compiled Sam workflows on microcontrollers (e.g., ESP32 via lightweight JS/C bindings over HTTP/serial).
 * **v1.0.0 — Self-Hosting** *(Planned)*: a compiler written in Sam itself, retiring `@sam-lang/compiler` and removing the TypeScript bootstrap toolchain.
 
 The analyzer is intentionally compiler-side and offline: it never calls a model. Its first rules cover reasoning-model budgets (`reasoning_effort`, `max_tokens`), `strict_schema` adoption, missing `retries` or `timeout` on HTTP agents, literal API keys, and hardcoded model names. Sam does not inject provider-specific defaults into flows; the analyzer recommends explicit values instead.
 
 Whitepapers are planned as two separate deliverables. The repository-level technical whitepaper lives next to the code and is versioned with it. A later website edition expands it into the project's long-form history, so it can evolve independently of the release cadence.
 
-Earlier releases delivered the lexer, schema parsing and Zod codegen (`v0.1.x`), agent declarations and the runtime split (`v0.2.0`), and flows plus the runtime SDK (`v0.3.0`).
+Earlier releases delivered the lexer, schema parsing and Zod codegen (`v0.1.x`), agent declarations and the runtime split (`v0.2.0`), flows plus the runtime SDK (`v0.3.0`), and chunking with sequential iteration (`v0.6.0`).
 
 ## License
 
