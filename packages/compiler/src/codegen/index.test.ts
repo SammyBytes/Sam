@@ -628,3 +628,80 @@ test("should import chunk from runtime and emit synchronous chunk() calls", () =
   expect(output).toContain("const parts = chunk(doc, 2000);");
   expect(output).not.toContain("await chunk");
 });
+
+test("should generate for...of loops when iterating over a variable", () => {
+  const code = `
+    flow IterateChunks(chunks: string[]) {
+      for part in chunks {
+        let current = part
+      }
+      return "done"
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain("for (const part of chunks) {");
+  expect(output).toContain("    const current = part;");
+});
+
+test("should generate for...of loops over chunk() and import chunk from runtime", () => {
+  const code = `
+    flow IterateDoc(doc: string) {
+      for part in chunk(doc, 2000) {
+        let current = part
+      }
+      return "done"
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    'import { createRuntime, chunk } from "@sam-lang/runtime";',
+  );
+  expect(output).toContain("for (const part of chunk(doc, 2000)) {");
+  expect(output).not.toContain("await chunk");
+});
+
+test("should generate break, continue, early return and agent calls inside a for loop", () => {
+  const code = `
+    schema Finding {
+      severity: string
+    }
+
+    agent Auditor {
+      runner: mock
+      workspace: "."
+    }
+
+    flow ReviewAll(doc: string) {
+      let chunks = chunk(doc, 2000)
+      for part in chunks {
+        let finding = use Auditor<Finding>(part)
+        if (finding.value.severity == "critical") {
+          break
+        }
+        if (finding.value.severity == "low") {
+          continue
+        }
+        if (!finding.ok) {
+          return finding
+        }
+      }
+      return "done"
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain("  for (const part of chunks) {");
+  // Agent calls inside the loop are awaited and indented two levels deep.
+  expect(output).toContain(
+    '    const finding = await sam.use("Auditor", part, FindingSchema);',
+  );
+  expect(output).toContain("      break;");
+  expect(output).toContain("      continue;");
+  expect(output).toContain("      return finding;");
+  expect(output).toContain("  return \"done\";");
+});

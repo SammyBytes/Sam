@@ -93,6 +93,13 @@ function generateStatement(
       }
       return ifStatementCode;
     }
+    case "ForStatement": {
+      return generateForStatement(statement, indentLevel, flowNames);
+    }
+    case "BreakStatement":
+      return generateBreakStatement(statement, indentLevel);
+    case "ContinueStatement":
+      return generateContinueStatement(statement, indentLevel);
     default:
       throw new Error(`Unsupported statement type: ${statement}`);
   }
@@ -158,6 +165,49 @@ function generateExpression(
     default:
       throw new Error(`Unsupported expression type: ${expression}`);
   }
+}
+
+function generateForStatement(
+  statement: StatementNode,
+  indentLevel: number,
+  flowNames: Set<string>,
+): string {
+  if (statement.type !== "ForStatement") {
+    throw new Error("Expected a ForStatement node");
+  }
+
+  const indent = "  ".repeat(indentLevel);
+  const iterator = statement.iterator;
+  const iterable = generateExpression(statement.iterable, flowNames);
+  const body = statement.body
+    .map((stmt) => generateStatement(stmt, indentLevel + 1, flowNames))
+    .join("\n");
+
+  return `${indent}for (const ${iterator} of ${iterable}) {\n${body}\n${indent}}`;
+}
+
+function generateBreakStatement(
+  statement: StatementNode,
+  indentLevel: number,
+): string {
+  if (statement.type !== "BreakStatement") {
+    throw new Error("Expected a BreakStatement node");
+  }
+
+  const indent = "  ".repeat(indentLevel);
+  return `${indent}break;`;
+}
+
+function generateContinueStatement(
+  statement: StatementNode,
+  indentLevel: number,
+): string {
+  if (statement.type !== "ContinueStatement") {
+    throw new Error("Expected a ContinueStatement node");
+  }
+
+  const indent = "  ".repeat(indentLevel);
+  return `${indent}continue;`;
 }
 
 function generateFlowFunctionCall(
