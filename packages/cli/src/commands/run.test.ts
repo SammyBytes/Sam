@@ -243,6 +243,25 @@ flow main(input: string) {
     expect(result.ephemeralFiles, context).toEqual([]);
   });
 
+  test("runs a flow that iterates over chunk() with a for loop", async () => {
+    const source = `
+flow main() {
+  for part in chunk("aaaa bbbb", 5) {
+    return part
+  }
+  return "none"
+}
+`;
+
+    const result = await runSam(source);
+    const context = describeRun(result);
+
+    expect(result.exitCode, context).toBe(0);
+    expect(result.stdout.trim(), context).toBe("aaaa");
+    expect(result.stderr, context).toBe("");
+    expect(result.ephemeralFiles, context).toEqual([]);
+  });
+
   test("reads a single string argument from stdin when no flow args are given", async () => {
     const source = `
 flow main(input: string) {
