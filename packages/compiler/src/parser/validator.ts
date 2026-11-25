@@ -30,6 +30,8 @@ function validateTypeAnnotation(
 function validateStatements(
   statements: StatementNode[],
   flowName: string,
+  declaredSymbols: Map<string, string>,
+  loopDepth: number = 0,
 ): void {
   for (const stmt of statements) {
     switch (stmt.type) {
@@ -42,10 +44,46 @@ function validateStatements(
       case "ReturnStatement":
         if (stmt.value) validateExpression(stmt.value, flowName);
         break;
+      case "ForStatement": {
+        if (declaredSymbols.has(stmt.iterator)) {
+          throw new Error(
+            `SemanticError: Loop iterator '${stmt.iterator}' in flow '${flowName}' conflicts with a reserved or declared identifier.`,
+          );
+        }
+        validateExpression(stmt.iterable, flowName);
+        validateStatements(stmt.body, flowName, declaredSymbols, loopDepth + 1);
+        break;
+      }
+      case "BreakStatement":
+        if (loopDepth === 0) {
+          throw new Error(
+            `SemanticError: 'break' in flow '${flowName}' can only be used inside a 'for' loop.`,
+          );
+        }
+        break;
+      case "ContinueStatement":
+        if (loopDepth === 0) {
+          throw new Error(
+            `SemanticError: 'continue' in flow '${flowName}' can only be used inside a 'for' loop.`,
+          );
+        }
+        break;
       case "IfStatement":
         validateExpression(stmt.condition, flowName);
-        validateStatements(stmt.thenBranch, flowName);
-        if (stmt.elseBranch) validateStatements(stmt.elseBranch, flowName);
+        validateStatements(
+          stmt.thenBranch,
+          flowName,
+          declaredSymbols,
+          loopDepth,
+        );
+        if (stmt.elseBranch) {
+          validateStatements(
+            stmt.elseBranch,
+            flowName,
+            declaredSymbols,
+            loopDepth,
+          );
+        }
         break;
     }
   }
@@ -80,6 +118,7 @@ function validateExpression(expr: ExpressionNode, flowName: string): void {
     case "ArrayExpression":
       for (const el of expr.elements) validateExpression(el, flowName);
       break;
+
     case "BinaryExpression":
       validateExpression(expr.left, flowName);
       validateExpression(expr.right, flowName);
@@ -93,6 +132,7 @@ function validateExpression(expr: ExpressionNode, flowName: string): void {
     case "TemplateLiteral":
       for (const sub of expr.expressions) validateExpression(sub, flowName);
       break;
+
     case "UseExpression":
       validateExpression(expr.inputPrompt, flowName);
       break;
@@ -164,7 +204,7 @@ export function validateProgram(program: ProgramNode): void {
         `Flow '${flow.name}' parameter '${param.name}'`,
       );
     }
-    validateStatements(flow.body, flow.name);
+    validateStatements(flow.body, flow.name, declaredSymbols);
   }
 
   for (const provider of providers) {

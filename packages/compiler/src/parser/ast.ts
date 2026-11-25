@@ -70,8 +70,16 @@ export type StatementNode =
       elseBranch?: StatementNode[];
     } // e.g., if (x > 0) { ... } else { ... }
   | { type: "ReturnStatement"; value?: ExpressionNode } // e.g., return x;
-  | { type: "ExpressionStatement"; expression: ExpressionNode }; // e.g., use MyAgent<TSchema>("input");
+  | { type: "ExpressionStatement"; expression: ExpressionNode } // e.g., use MyAgent<TSchema>("input");
+  | ForStatementNode
+  | BreakStatementNode
+  | ContinueStatementNode;
 
+/**
+ * ExpressionNode represents the different types of expressions that can be used in the Sam language.
+ * It includes identifiers, literals, binary expressions, unary expressions, template literals,
+ * member expressions, call expressions, use expressions, parallel expressions, and array expressions.
+ */
 export type ExpressionNode =
   | { type: "Identifier"; name: string } // e.g., x
   | { type: "Literal"; value: string | number | boolean } // e.g., 42, "hello", true
@@ -152,6 +160,20 @@ export type TypeAnnotation =
   | { kind: "BaseType"; name: string }
   | { kind: "ArrayType"; elementType: TypeAnnotation };
 
+export interface ForStatementNode {
+  type: "ForStatement";
+  iterator: string; // The variable name used in the for loop, e.g., "item"
+  iterable: ExpressionNode; // The expression representing the iterable, e.g., an array or collection
+  body: StatementNode[]; // Array of statements that make up the body of the for loop
+}
+
+export interface BreakStatementNode {
+  type: "BreakStatement";
+}
+
+export interface ContinueStatementNode {
+  type: "ContinueStatement";
+}
 //------------------------------------------------------------------
 // AST Node Types
 //------------------------------------------------------------------

@@ -14,6 +14,14 @@ export function parseStatement(context: IParserContext): StatementNode {
     case "RETURN":
       return parseReturnStatement(context);
 
+    case "FOR":
+      return parseForStatement(context);
+
+    case "BREAK":
+      return parseBreakStatement(context);
+
+    case "CONTINUE":
+      return parseContinueStatement(context);
 
     default:
       return {
@@ -21,6 +29,25 @@ export function parseStatement(context: IParserContext): StatementNode {
         expression: parseExpression(context),
       };
   }
+}
+
+function parseForStatement(context: IParserContext): StatementNode {
+  context.consume("FOR", "Expected 'for' keyword");
+  const iteratorToken = context.consume(
+    "IDENTIFIER",
+    "Expected identifier after 'for'",
+  );
+  context.consume("IN", "Expected 'in' after iterator");
+
+  const iterableExpression = parseExpression(context);
+  const body = parseBlock(context);
+
+  return {
+    type: "ForStatement",
+    iterator: iteratorToken.value,
+    iterable: iterableExpression,
+    body,
+  };
 }
 
 function parseLetStatement(context: IParserContext): StatementNode {
@@ -83,5 +110,25 @@ function parseReturnStatement(context: IParserContext): StatementNode {
   return {
     type: "ReturnStatement",
     value,
+  };
+}
+
+function parseBreakStatement(context: IParserContext): StatementNode {
+  context.consume("BREAK", "Expected 'break' keyword");
+  if (context.peek().type === "SEMICOLON") {
+    context.advance();
+  }
+  return {
+    type: "BreakStatement",
+  };
+}
+
+function parseContinueStatement(context: IParserContext): StatementNode {
+  context.consume("CONTINUE", "Expected 'continue' keyword");
+  if (context.peek().type === "SEMICOLON") {
+    context.advance();
+  }
+  return {
+    type: "ContinueStatement",
   };
 }
