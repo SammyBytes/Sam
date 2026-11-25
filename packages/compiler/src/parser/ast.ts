@@ -152,11 +152,32 @@ export type TypeAnnotation =
   | { kind: "BaseType"; name: string }
   | { kind: "ArrayType"; elementType: TypeAnnotation };
 
+export interface ForStatementNode {
+  type: "ForStatement";
+  iterator: string; // The variable name used in the for loop, e.g., "item"
+  iterable: ExpressionNode; // The expression representing the iterable, e.g., an array or collection
+  body: StatementNode[]; // Array of statements that make up the body of the for loop
+}
+
+export interface BreakStatementNode {
+  type: "BreakStatement";
+}
+
+export interface ContinueStatementNode {
+  type: "ContinueStatement";
+}
 //------------------------------------------------------------------
 // AST Node Types
 //------------------------------------------------------------------
 
-export type ASTNode = SchemaNode | AgentNode | FlowNode | ProviderNode;
+export type ASTNode =
+  | SchemaNode
+  | AgentNode
+  | FlowNode
+  | ProviderNode
+  | ForStatementNode
+  | BreakStatementNode
+  | ContinueStatementNode;
 
 export interface ProgramNode {
   type: "Program";
