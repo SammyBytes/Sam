@@ -75,6 +75,11 @@ export type StatementNode =
   | BreakStatementNode
   | ContinueStatementNode;
 
+/**
+ * ExpressionNode represents the different types of expressions that can be used in the Sam language.
+ * It includes identifiers, literals, binary expressions, unary expressions, template literals,
+ * member expressions, call expressions, use expressions, parallel expressions, and array expressions.
+ */
 export type ExpressionNode =
   | { type: "Identifier"; name: string } // e.g., x
   | { type: "Literal"; value: string | number | boolean } // e.g., 42, "hello", true
