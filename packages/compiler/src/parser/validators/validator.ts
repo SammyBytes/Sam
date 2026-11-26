@@ -2,11 +2,13 @@ import type {
   AgentNode,
   ExpressionNode,
   FlowNode,
+  ForStatementNode,
   ProgramNode,
   SchemaNode,
   StatementNode,
   TypeAnnotation,
-} from "./ast";
+} from "../ast";
+import type { LoopContext, ValidationContext } from "./context";
 
 const PRIMITIVE_TYPES = new Set(["string", "number", "boolean"]);
 
@@ -26,76 +28,121 @@ function validateTypeAnnotation(
     );
   }
 }
+function validateForLoop(
+  loopNode: ForStatementNode,
+  isExpression: boolean,
+  ctx: ValidationContext,
+): void {
+  if (ctx.declaredSymbols.has(loopNode.iterator)) {
+    throw new Error(
+      `SemanticError: Loop iterator '${loopNode.iterator}' in flow '${ctx.flowName}' conflicts with a reserved or declared identifier.`,
+    );
+  }
+  validateExpression(loopNode.iterable, ctx);
+
+  const loopSymbols = new Map(ctx.declaredSymbols);
+  loopSymbols.set(loopNode.iterator, "LoopIterator");
+
+  const loopContext: LoopContext = {
+    isExpression,
+    hasYield: false,
+  };
+
+  validateStatements(loopNode.body, {
+    flowName: ctx.flowName,
+    declaredSymbols: loopSymbols,
+    loopStack: [...ctx.loopStack, loopContext],
+  });
+
+  if (isExpression && !loopContext.hasYield) {
+    throw new Error(
+      `SemanticError: 'for' expression in flow '${ctx.flowName}' must contain at least one 'yield' statement.`,
+    );
+  }
+}
 
 function validateStatements(
   statements: StatementNode[],
-  flowName: string,
-  declaredSymbols: Map<string, string>,
-  loopDepth: number = 0,
+  ctx: ValidationContext,
 ): void {
   for (const stmt of statements) {
     switch (stmt.type) {
-      case "LetStatement":
-        validateExpression(stmt.value, flowName);
-        break;
-      case "ExpressionStatement":
-        validateExpression(stmt.expression, flowName);
-        break;
-      case "ReturnStatement":
-        if (stmt.value) validateExpression(stmt.value, flowName);
-        break;
-      case "ForStatement": {
-        if (declaredSymbols.has(stmt.iterator)) {
-          throw new Error(
-            `SemanticError: Loop iterator '${stmt.iterator}' in flow '${flowName}' conflicts with a reserved or declared identifier.`,
-          );
+      case "LetStatement": {
+        validateExpression(stmt.value, ctx);
+        if (typeof stmt.name === "string") {
+          ctx.declaredSymbols.set(stmt.name, "Variable");
+        } else {
+          for (const name of stmt.name) {
+            ctx.declaredSymbols.set(name, "Variable");
+          }
         }
-        validateExpression(stmt.iterable, flowName);
-        validateStatements(stmt.body, flowName, declaredSymbols, loopDepth + 1);
         break;
       }
-      case "BreakStatement":
-        if (loopDepth === 0) {
+      case "ExpressionStatement":
+        validateExpression(stmt.expression, ctx);
+        break;
+      case "ReturnStatement":
+        if (stmt.value) validateExpression(stmt.value, ctx);
+        break;
+      case "ForStatement":
+        validateForLoop(stmt, false, ctx);
+        break;
+
+      case "YieldStatement": {
+        const currentLoop = ctx.loopStack[ctx.loopStack.length - 1];
+        if (!currentLoop || !currentLoop.isExpression) {
           throw new Error(
-            `SemanticError: 'break' in flow '${flowName}' can only be used inside a 'for' loop.`,
+            `SemanticError: 'yield' in flow '${ctx.flowName}' can only be used inside a 'for' expression (e.g. 'let x = for ...').`,
+          );
+        }
+        currentLoop.hasYield = true;
+        validateExpression(stmt.value, ctx);
+        break;
+      }
+
+      case "BreakStatement":
+        if (ctx.loopStack.length === 0) {
+          throw new Error(
+            `SemanticError: 'break' in flow '${ctx.flowName}' can only be used inside a 'for' loop.`,
           );
         }
         break;
       case "ContinueStatement":
-        if (loopDepth === 0) {
+        if (ctx.loopStack.length === 0) {
           throw new Error(
-            `SemanticError: 'continue' in flow '${flowName}' can only be used inside a 'for' loop.`,
+            `SemanticError: 'continue' in flow '${ctx.flowName}' can only be used inside a 'for' loop.`,
           );
         }
         break;
       case "IfStatement":
-        validateExpression(stmt.condition, flowName);
-        validateStatements(
-          stmt.thenBranch,
-          flowName,
-          declaredSymbols,
-          loopDepth,
-        );
+        validateExpression(stmt.condition, ctx);
+        validateStatements(stmt.thenBranch, {
+          flowName: ctx.flowName,
+          declaredSymbols: ctx.declaredSymbols,
+          loopStack: ctx.loopStack,
+        });
         if (stmt.elseBranch) {
-          validateStatements(
-            stmt.elseBranch,
-            flowName,
-            declaredSymbols,
-            loopDepth,
-          );
+          validateStatements(stmt.elseBranch, {
+            flowName: ctx.flowName,
+            declaredSymbols: ctx.declaredSymbols,
+            loopStack: ctx.loopStack,
+          });
         }
         break;
     }
   }
 }
 
-function validateExpression(expr: ExpressionNode, flowName: string): void {
+function validateExpression(
+  expr: ExpressionNode,
+  ctx: ValidationContext,
+): void {
   switch (expr.type) {
     case "CallExpression": {
       if (expr.callee.type === "Identifier" && expr.callee.name === "chunk") {
         if (expr.arguments.length !== 2) {
           throw new Error(
-            `SemanticError: Builtin 'chunk' in flow '${flowName}' expects 2 arguments (text, maxChars), got ${expr.arguments.length}.`,
+            `SemanticError: Builtin 'chunk' in flow '${ctx.flowName}' expects 2 arguments (text, maxChars), got ${expr.arguments.length}.`,
           );
         }
         const maxCharsArg = expr.arguments[1];
@@ -106,38 +153,43 @@ function validateExpression(expr: ExpressionNode, flowName: string): void {
             maxCharsArg.value <= 0
           ) {
             throw new Error(
-              `SemanticError: Builtin 'chunk' in flow '${flowName}' expects a positive integer for 'maxChars'.`,
+              `SemanticError: Builtin 'chunk' in flow '${ctx.flowName}' expects a positive integer for 'maxChars'.`,
             );
           }
         }
       }
-      validateExpression(expr.callee, flowName);
-      for (const arg of expr.arguments) validateExpression(arg, flowName);
+      validateExpression(expr.callee, ctx);
+      for (const arg of expr.arguments) validateExpression(arg, ctx);
       break;
     }
     case "ArrayExpression":
-      for (const el of expr.elements) validateExpression(el, flowName);
+      for (const el of expr.elements) validateExpression(el, ctx);
       break;
 
     case "BinaryExpression":
-      validateExpression(expr.left, flowName);
-      validateExpression(expr.right, flowName);
+      validateExpression(expr.left, ctx);
+      validateExpression(expr.right, ctx);
       break;
     case "UnaryExpression":
-      validateExpression(expr.argument, flowName);
+      validateExpression(expr.argument, ctx);
       break;
     case "MemberExpression":
-      validateExpression(expr.object, flowName);
+      validateExpression(expr.object, ctx);
       break;
     case "TemplateLiteral":
-      for (const sub of expr.expressions) validateExpression(sub, flowName);
+      for (const sub of expr.expressions) validateExpression(sub, ctx);
       break;
 
     case "UseExpression":
-      validateExpression(expr.inputPrompt, flowName);
+      validateExpression(expr.inputPrompt, ctx);
       break;
+
+    case "ForStatement":
+      validateForLoop(expr, true, ctx);
+      break;
+
     case "ParallelExpression":
-      for (const sub of expr.expressions) validateExpression(sub, flowName);
+      for (const sub of expr.expressions) validateExpression(sub, ctx);
       break;
   }
 }
@@ -195,16 +247,21 @@ export function validateProgram(program: ProgramNode): void {
       );
     }
   }
-
   for (const flow of flows) {
+    const flowSymbols = new Map(declaredSymbols);
     for (const param of flow.params) {
       validateTypeAnnotation(
         param.type,
         schemasNames,
         `Flow '${flow.name}' parameter '${param.name}'`,
       );
+      flowSymbols.set(param.name, "Parameter");
     }
-    validateStatements(flow.body, flow.name, declaredSymbols);
+    validateStatements(flow.body, {
+      flowName: flow.name,
+      declaredSymbols: flowSymbols,
+      loopStack: [],
+    });
   }
 
   for (const provider of providers) {

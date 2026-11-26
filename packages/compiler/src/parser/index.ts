@@ -11,7 +11,7 @@ import { parseFlow } from "./parsers/parseFlow";
 import { parseProvider } from "./parsers/parseProvider";
 import { parseSchema } from "./parsers/parseSchema";
 import type { IParserContext } from "./types";
-import { validateProgram } from "./validator";
+import { validateProgram } from "./validators/validator";
 
 export class Parser implements IParserContext {
   private tokens: Token[];
