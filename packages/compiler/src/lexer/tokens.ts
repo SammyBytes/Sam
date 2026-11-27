@@ -40,6 +40,7 @@ export type TokenType =
   | "BREAK"
   | "CONTINUE"
   | "IN"
+  | "YIELD"
   | "EOF";
 
 export interface Token {
@@ -69,6 +70,7 @@ export const KEYWORDS: Record<string, TokenType> = {
   for: "FOR",
   break: "BREAK",
   continue: "CONTINUE",
+  yield: "YIELD",
   in: "IN",
 };
 

@@ -73,7 +73,8 @@ export type StatementNode =
   | { type: "ExpressionStatement"; expression: ExpressionNode } // e.g., use MyAgent<TSchema>("input");
   | ForStatementNode
   | BreakStatementNode
-  | ContinueStatementNode;
+  | ContinueStatementNode
+  | YieldStatementNode;
 
 /**
  * ExpressionNode represents the different types of expressions that can be used in the Sam language.
@@ -114,7 +115,8 @@ export type ExpressionNode =
       type: "ParallelExpression";
       expressions: UseExpressionNode[];
     } // e.g., parallel(use Agent1<TSchema>("input1"), use Agent2<TSchema>("input2"));
-  | { type: "ArrayExpression"; elements: ExpressionNode[] };
+  | { type: "ArrayExpression"; elements: ExpressionNode[] } 
+  | ForStatementNode
 
 export type UseExpressionNode = {
   type: "UseExpression";
@@ -174,6 +176,15 @@ export interface BreakStatementNode {
 export interface ContinueStatementNode {
   type: "ContinueStatement";
 }
+
+//------------------------------------------------------------------
+// Yield Statement Node (v0.7.0)
+//------------------------------------------------------------------
+export interface YieldStatementNode {
+  type: "YieldStatement";
+  value: ExpressionNode; // The expression that is being yielded, e.g., yield x;
+}
+
 //------------------------------------------------------------------
 // AST Node Types
 //------------------------------------------------------------------

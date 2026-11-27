@@ -1,0 +1,42 @@
+edition "2026"
+
+provider Groq {
+  protocol: "openai-compatible",
+  base_url: env("GROQ_BASE_URL"),
+  api_key: env("GROQ_API_KEY"),
+  strict_schema: true
+}
+
+schema ChunkSummary {
+  summary: string
+}
+
+agent ChunkSummarizer {
+  provider: Groq,
+  model: env("GROQ_MODEL"),
+  system_prompt: "Summarize the given text in one short sentence. Return only the requested JSON.",
+  temperature: 0.2,
+  max_tokens: 500,
+  reasoning_effort: "low",
+  timeout: 60,
+  retries: 1
+}
+
+flow SummarizeChunks(document: string) {
+  let chunks = chunk(document, 120)
+  let summaries = for part in chunks {
+    let result = use ChunkSummarizer<ChunkSummary>(`Summarize this part: ${part}`)
+    if (!result.ok) {
+      return result
+    }
+    yield result.value
+  }
+  return summaries
+}
+
+flow CollectChunks(text: string) {
+  let parts = for part in chunk(text, 16) {
+    yield part
+  }
+  return parts
+}

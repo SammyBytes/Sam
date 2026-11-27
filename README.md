@@ -15,7 +15,7 @@ Sam treats agent orchestration as a language problem, not a shell-script problem
 - **Providers** — connection details and protocol capabilities for OpenAI-compatible HTTP APIs.
 - **Schemas** — strict contracts for the data an agent must return.
 - **Agents** — executors backed by either a local CLI runner or an HTTP provider, with a prompt, timeout, token limits, and retry policies.
-- **Flows** — typed procedures with variables, conditionals, sequential `for` loops, early returns, and safe or unsafe agent invocation.
+- **Flows** — typed procedures with variables, conditionals, sequential `for` loops, `for` expressions that collect `yield`ed values, early returns, and safe or unsafe agent invocation.
 
 The toolchain is built with **Bun**, **TypeScript**, **Citty**, and **Zod**. Programs are parsed into a typed AST, emitted as temporary TypeScript, validated at runtime, and executed through the `@sam-lang/runtime` SDK.
 
@@ -524,6 +524,37 @@ flow ReviewAll(chunks: string[]) {
 }
 ```
 
+#### For-expressions and `yield`
+
+Assigning a `for` loop to a `let` turns it into an expression. The loop still runs sequentially, and each `yield` appends a value to a new array. `continue` filters items without yielding, `break` stops the loop but keeps what was already collected, and `return` aborts the whole flow.
+
+```sb
+schema ChunkSummary {
+  summary: string
+}
+
+agent ChunkSummarizer {
+  runner: mock,
+  workspace: "."
+}
+
+flow Summarize(doc: string) {
+  let summaries = for part in chunk(doc, 2000) {
+    let result = use ChunkSummarizer<ChunkSummary>(part)
+
+    if (!result.ok) {
+      return result
+    }
+
+    yield result.value
+  }
+
+  return summaries
+}
+```
+
+`summaries` is a new array containing one validated `ChunkSummary` per chunk, in input order. A `for` expression must contain at least one `yield`, and `yield` is only valid inside a `for` expression.
+
 ### Agent invocation
 
 | Syntax | Result |
@@ -629,7 +660,7 @@ gh attestation verify sam-linux-x64 --repo SammyBytes/Sam
 * **v0.4.0 — Direct Execution** *(Done)*: `sam run` with positional arguments and stdin pipelines, smart entry point resolution, standalone compiled binaries for Linux/macOS/Windows, tag-driven releases, and guaranteed temporary-file cleanup.
 * **v0.5.0 — Providers** *(Done)*: top-level `provider` declarations, OpenAI-compatible HTTP execution, `env()` expansion, `strict_schema` structured outputs, native `retries` with `Retry-After` backoff, `max_tokens` limits, `reasoning_effort` budgets, and full backward compatibility with local `opencode` and `mock` runners.
 * **v0.6.0 — Chunking & Sequential Iteration** *(Done)*: `max_input` context safeguards, native `chunk(text, maxChars)` splitting builtin in `@sam-lang/runtime`, and sequential `for <item> in <iterable>` loops with `break`, `continue`, and loop-scope validation.
-* **v0.7.0 — Immutable Collection & Bounded Concurrency** *(Next)*: `for` expressions with `yield` for immutable result collection (`let results = for ...`), ordered bounded concurrency (`for ... parallel(N)` with optional `unordered` mode), and structured fan-out `parallel { ... }` blocks.
+* **v0.7.0 — Immutable Collection & Bounded Concurrency** *(In progress)*: **Milestone 1 (immutable collections) is done** — `for` expressions with `yield` (`let results = for ...`). **Milestone 2 (bounded concurrency)** is next: ordered `for ... parallel(N)` with optional `unordered` mode, plus structured fan-out `parallel { ... }` blocks.
 * **v0.8.0 — Integrations & Analyzer** *(Planned)*: additional provider protocols, richer `model` configuration, webhook triggers, contract validation loops, a compiler-level `sam check` analyzer for best-practice warnings, and a repository-level technical whitepaper.
 * **Claude Code runner hardening** *(Planned, v0.8.0)*: the `claude` runner (`runner: claude`, branch `feat/claude-code-runner`) is functional for structured and `use unsafe` calls on Windows, but needs three follow-ups tracked as issues: [#18](https://github.com/SammyBytes/Sam/issues/18) a `RunnerPool` that reuses and cleans up processes, [#19](https://github.com/SammyBytes/Sam/issues/19) explicit DSL timeout units, and [#20](https://github.com/SammyBytes/Sam/issues/20) an explicit permissions block for models, workspace writes and authentication. A small cost benchmark found about $0.08 of fixed overhead per separate `claude -p` call; batching six reviews into one call cost about one fifth of six separate calls, while `haiku` was not cheaper per call than `sonnet` in that run.
 * **v0.9.0 — Deeper Analysis** *(Planned)*: analyzer output as JSON, project-level rule configuration, inline suppressions (which require comment syntax in the lexer), an extensible model capability table, editor/CI integrations, and a website edition of the whitepaper maintained as the project's long-form history. Warnings stay non-blocking by default; `sam check --strict` promotes them to errors.
