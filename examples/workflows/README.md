@@ -9,6 +9,7 @@ long model reply.
 | `ticket_readiness.sb` | Checks that a ticket has an objective, out-of-scope notes and validation steps | `{ has_objective, has_out_of_scope, has_validation, missing_sections }` |
 | `pr_review_gate.sb` | Reviews a diff and blocks when it finds blocking issues | `"approved"` or `"blocked"` |
 | `iteration_digest.sb` | Writes a short status digest from task lines (uses `use unsafe`, free text) | plain text |
+| `yield_collection.sb` | Summarizes chunks and builds a new array with `for ... yield` (Groq) | `ChunkSummary[]` or `string[]` |
 | `run_parallel.sh` | Runs one flow over every file in a folder, in parallel | one JSON file per input |
 
 ## Run one example
@@ -43,4 +44,5 @@ others, and the script exits non-zero if any run failed. Errors go to
   itself. Keep `max_budget_usd` set on every agent.
 - `ticket_readiness` uses `haiku`. `pr_review_gate` uses `sonnet`, because a
   wrong approval costs more than the extra tokens.
+- `yield_collection` uses `openai/gpt-oss-20b` on Groq and makes one call per chunk.
 - The DSL has no `parallel(...)` yet. Use `run_parallel.sh` instead.
