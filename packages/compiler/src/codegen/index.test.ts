@@ -762,3 +762,177 @@ test("should propagate early returns from a nested for-expression", () => {
   );
   expect(output).toContain("if (_loop_outer.__samReturn) return _loop_outer.value;");
 });
+
+test("should generate sam.mapParallel with WorkerOutcome and signal propagation", () => {
+  const code = `
+    schema ItemOut {
+      ok: boolean
+    }
+
+    agent WorkerAgent {
+      runner: mock
+      workspace: "."
+    }
+
+    flow ProcessParallel(items: string[]) {
+      let out = for item in items with { parallel: 3, ordered: false } {
+        if (item == "skip") {
+          continue
+        }
+        if (item == "stop") {
+          return "early-stop"
+        }
+        let res = use WorkerAgent<ItemOut>(item)
+        yield res
+      }
+      return out
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    "const _res_out = await sam.mapParallel(items, { parallel: 3, ordered: false }, async (item, signal) => {",
+  );
+  expect(output).toContain('return { kind: "continue" };');
+  expect(output).toContain('return { kind: "return", value: "early-stop" };');
+  expect(output).toContain(
+    'const res = await sam.use("WorkerAgent", item, ItemOutSchema, { signal: signal });',
+  );
+  expect(output).toContain('return { kind: "yield", value: res };');
+  expect(output).toContain('if (_res_out.kind === "return") return _res_out.value;');
+  expect(output).toContain("const out = _res_out.values;");
+});
+
+test("should propagate parent worker signal into nested parallel loops", () => {
+  const code = `
+    flow NestedParallel(groups: string[][]) {
+      for group in groups with { parallel: 2 } {
+        let sub = for entry in group with { parallel: 2 } {
+          yield entry
+        }
+      }
+      return "ok"
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    "await sam.mapParallel(groups, { parallel: 2, ordered: true }, async (group, signal) => {",
+  );
+  expect(output).toContain(
+    "await sam.mapParallel(group, { parallel: 2, ordered: true, signal: signal }, async (entry, signal) => {",
+  );
+});
+
+test("should emit ordered true by default and ordered false when explicitly set", () => {
+  const code = `
+    flow OrderModes(items: string[]) {
+      let defaultOrdered = for item in items with { parallel: 2 } {
+        yield item
+      }
+      let unordered = for item in items with { parallel: 2, ordered: false } {
+        yield item
+      }
+      return unordered
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    "const _res_defaultOrdered = await sam.mapParallel(items, { parallel: 2, ordered: true }, async (item, signal) => {",
+  );
+  expect(output).toContain(
+    "const _res_unordered = await sam.mapParallel(items, { parallel: 2, ordered: false }, async (item, signal) => {",
+  );
+});
+
+test("should support dynamic concurrency expressions in parallel loops", () => {
+  const code = `
+    flow DynamicPool(items: string[], workers: number) {
+      let out = for item in items with { parallel: workers, ordered: true } {
+        yield item
+      }
+      return out
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    "const _res_out = await sam.mapParallel(items, { parallel: workers, ordered: true }, async (item, signal) => {",
+  );
+});
+
+test("should pass signal to sam.use and sam.useUnsafe inside a parallel worker", () => {
+  const code = `
+    schema ParsedItem {
+      ok: boolean
+    }
+
+    agent SafeWorker {
+      runner: mock
+      workspace: "."
+    }
+
+    agent RawWorker {
+      runner: mock
+      workspace: "."
+    }
+
+    flow UseWithSignal(items: string[]) {
+      let out = for item in items with { parallel: 2 } {
+        let safeRes = use SafeWorker<ParsedItem>(item)
+        let rawRes = use unsafe RawWorker(item)
+        yield safeRes
+      }
+      return out
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    'const safeRes = await sam.use("SafeWorker", item, ParsedItemSchema, { signal: signal });',
+  );
+  expect(output).toContain(
+    'const rawRes = await sam.useUnsafe("RawWorker", item, { signal: signal });',
+  );
+});
+
+test("should propagate signal into nested parallel loops and agent calls inside inner workers", () => {
+  const code = `
+    schema LeafResult {
+      done: boolean
+    }
+
+    agent LeafAgent {
+      runner: mock
+      workspace: "."
+    }
+
+    flow DeepParallel(matrix: string[][]) {
+      for row in matrix with { parallel: 2, ordered: true } {
+        let rowOut = for cell in row with { parallel: 4, ordered: false } {
+          let res = use LeafAgent<LeafResult>(cell)
+          yield res
+        }
+      }
+      return "done"
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    "await sam.mapParallel(matrix, { parallel: 2, ordered: true }, async (row, signal) => {",
+  );
+  expect(output).toContain(
+    "const _res_rowOut = await sam.mapParallel(row, { parallel: 4, ordered: false, signal: signal }, async (cell, signal) => {",
+  );
+  expect(output).toContain(
+    'const res = await sam.use("LeafAgent", cell, LeafResultSchema, { signal: signal });',
+  );
+});

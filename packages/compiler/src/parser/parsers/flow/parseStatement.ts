@@ -1,4 +1,9 @@
-import type { ExpressionNode, FlowNode, ForStatementNode, StatementNode } from "../../ast";
+import type {
+  ExpressionNode,
+  FlowNode,
+  ForStatementNode,
+  StatementNode,
+} from "../../ast";
 import type { IParserContext } from "../../types";
 import { parseBlock } from "./parseBlock";
 import { parseExpression } from "./parseExpression";
@@ -33,7 +38,6 @@ export function parseStatement(context: IParserContext): StatementNode {
       };
   }
 }
-
 function parseForStatement(context: IParserContext): StatementNode {
   context.consume("FOR", "Expected 'for' keyword");
   const iteratorToken = context.consume(
@@ -43,12 +47,75 @@ function parseForStatement(context: IParserContext): StatementNode {
   context.consume("IN", "Expected 'in' after iterator");
 
   const iterableExpression = parseExpression(context);
+
+  let parallel: ExpressionNode | undefined;
+  let ordered: boolean | undefined;
+
+  if (context.peek().type === "IDENTIFIER" && context.peek().value === "with") {
+    context.advance(); // consume 'with'
+    context.consume("LBRACE", "Expected '{' after 'with'");
+
+    if (context.peek().type === "RBRACE") {
+      throw new Error("Expected 'parallel' or 'ordered' inside 'with { ... }'");
+    }
+
+    const seenKeys = new Set<string>();
+
+    while (!context.isAtEnd() && context.peek().type !== "RBRACE") {
+      const keyToken = context.peek();
+      const isOptionName =
+        keyToken.type === "IDENTIFIER" ||
+        keyToken.type === "PARALLEL" ||
+        keyToken.value === "parallel" ||
+        keyToken.value === "ordered";
+
+      if (!isOptionName) {
+        throw new Error(
+          `Expected option name ('parallel' or 'ordered') in 'with' block`,
+        );
+      }
+      context.advance();
+
+      if (seenKeys.has(keyToken.value)) {
+        throw new Error(`Duplicate option '${keyToken.value}' in 'with' block`);
+      }
+      seenKeys.add(keyToken.value);
+
+      context.consume("COLON", `Expected ':' after '${keyToken.value}'`);
+
+      if (keyToken.value === "parallel") {
+        parallel = parseExpression(context);
+      } else if (keyToken.value === "ordered") {
+        const boolToken = context.peek();
+        if (boolToken.type !== "BOOLEAN") {
+          throw new Error(
+            "Expected boolean literal ('true' or 'false') for 'ordered'",
+          );
+        }
+        context.advance();
+        ordered = boolToken.value === "true";
+      } else {
+        throw new Error(`Unknown option '${keyToken.value}' in 'with' block`);
+      }
+
+      if (context.peek().type === "COMMA") {
+        context.advance();
+      } else {
+        break;
+      }
+    }
+
+    context.consume("RBRACE", "Expected '}' after 'with { ... }'");
+  }
+
   const body = parseBlock(context);
 
   return {
     type: "ForStatement",
     iterator: iteratorToken.value,
     iterable: iterableExpression,
+    ...(parallel !== undefined ? { parallel } : {}),
+    ...(ordered !== undefined ? { ordered } : {}),
     body,
   };
 }
@@ -91,7 +158,7 @@ function parseLetStatement(context: IParserContext): StatementNode {
     context.peek().type === "FOR"
       ? (parseForStatement(context) as ForStatementNode)
       : parseExpression(context);
-      
+
   return {
     type: "LetStatement",
     name: identifierToken.value,

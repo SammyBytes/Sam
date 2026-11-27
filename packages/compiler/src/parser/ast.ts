@@ -166,6 +166,8 @@ export interface ForStatementNode {
   type: "ForStatement";
   iterator: string; // The variable name used in the for loop, e.g., "item"
   iterable: ExpressionNode; // The expression representing the iterable, e.g., an array or collection
+  parallel?: ExpressionNode; // Indicates if the for loop is parallel (true) or sequential (false)
+  ordered?: boolean; // Indicates if the parallel execution should maintain order (true) or not (false)
   body: StatementNode[]; // Array of statements that make up the body of the for loop
 }
 

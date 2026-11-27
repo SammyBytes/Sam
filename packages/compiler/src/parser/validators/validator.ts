@@ -38,7 +38,20 @@ function validateForLoop(
       `SemanticError: Loop iterator '${loopNode.iterator}' in flow '${ctx.flowName}' conflicts with a reserved or declared identifier.`,
     );
   }
+
   validateExpression(loopNode.iterable, ctx);
+
+  if (loopNode.parallel) {
+    validateExpression(loopNode.parallel, ctx);
+    if (loopNode.parallel.type === "Literal") {
+      const val = loopNode.parallel.value;
+      if (typeof val !== "number" || !Number.isInteger(val) || val <= 0) {
+        throw new Error(
+          `SemanticError: 'parallel' concurrency limit in flow '${ctx.flowName}' must be a positive integer.`,
+        );
+      }
+    }
+  }
 
   const loopSymbols = new Map(ctx.declaredSymbols);
   loopSymbols.set(loopNode.iterator, "LoopIterator");
@@ -46,6 +59,8 @@ function validateForLoop(
   const loopContext: LoopContext = {
     isExpression,
     hasYield: false,
+    parallel: loopNode.parallel,
+    ordered: loopNode.ordered,
   };
 
   validateStatements(loopNode.body, {
@@ -53,6 +68,12 @@ function validateForLoop(
     declaredSymbols: loopSymbols,
     loopStack: [...ctx.loopStack, loopContext],
   });
+
+  if (loopContext.ordered !== undefined && loopContext.parallel === undefined) {
+    throw new Error(
+      `SemanticError: 'for' loop in flow '${ctx.flowName}' has 'ordered' option without 'parallel' option.`,
+    );
+  }
 
   if (isExpression && !loopContext.hasYield) {
     throw new Error(
@@ -96,6 +117,14 @@ function validateStatements(
           );
         }
         currentLoop.hasYield = true;
+        currentLoop.yieldCount = (currentLoop.yieldCount || 0) + 1;
+
+        if (currentLoop.yieldCount > 1) {
+          throw new Error(
+            `SemanticError: 'for' expression in flow '${ctx.flowName}' can only contain one 'yield' statement.`,
+          );
+        }
+
         validateExpression(stmt.value, ctx);
         break;
       }
@@ -104,6 +133,12 @@ function validateStatements(
         if (ctx.loopStack.length === 0) {
           throw new Error(
             `SemanticError: 'break' in flow '${ctx.flowName}' can only be used inside a 'for' loop.`,
+          );
+        }
+        const currentLoop = ctx.loopStack[ctx.loopStack.length - 1];
+        if (currentLoop?.parallel !== undefined) {
+          throw new Error(
+            `SemanticError: 'break' is not allowed inside a parallel 'for' loop in flow '${ctx.flowName}'.`,
           );
         }
         break;

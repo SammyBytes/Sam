@@ -57,6 +57,7 @@ function generateStatement(
   indentLevel: number = 1,
   flowNames: Set<string> = new Set(),
   isInForExpression: boolean = false,
+  workerSignalName?: string,
 ): string {
   const indent = "  ".repeat(indentLevel);
 
@@ -70,20 +71,33 @@ function generateStatement(
           indentLevel,
           flowNames,
           isInForExpression,
+          workerSignalName,
         );
       }
 
-      const varValue = generateExpression(statement.value, flowNames);
+      const varValue = generateExpression(
+        statement.value,
+        flowNames,
+        workerSignalName,
+      );
       return `${indent}const ${varName} = ${varValue};`;
     }
     case "ExpressionStatement": {
-      const exprValue = generateExpression(statement.expression, flowNames);
+      const exprValue = generateExpression(
+        statement.expression,
+        flowNames,
+        workerSignalName,
+      );
       return `${indent}${exprValue};`;
     }
     case "ReturnStatement": {
       const returnValue = statement.value
-        ? generateExpression(statement.value, flowNames)
+        ? generateExpression(statement.value, flowNames, workerSignalName)
         : "";
+      if (workerSignalName) {
+        const retVal = returnValue || "undefined";
+        return `${indent}return { kind: "return", value: ${retVal} };`;
+      }
       if (isInForExpression) {
         const retVal = returnValue || "undefined";
         return `${indent}return { __samReturn: true, value: ${retVal} };`;
@@ -92,11 +106,22 @@ function generateStatement(
       return `${indent}${isEarlyReturn}`;
     }
     case "YieldStatement": {
-      const yieldValue = generateExpression(statement.value, flowNames);
+      const yieldValue = generateExpression(
+        statement.value,
+        flowNames,
+        workerSignalName,
+      );
+      if (workerSignalName) {
+        return `${indent}return { kind: "yield", value: ${yieldValue} };`;
+      }
       return `${indent}_acc.push(${yieldValue});`;
     }
     case "IfStatement": {
-      const condition = generateExpression(statement.condition, flowNames);
+      const condition = generateExpression(
+        statement.condition,
+        flowNames,
+        workerSignalName,
+      );
       const thenBlock = statement.thenBranch
         .map((stmt) =>
           generateStatement(
@@ -104,6 +129,7 @@ function generateStatement(
             indentLevel + 1,
             flowNames,
             isInForExpression,
+            workerSignalName,
           ),
         )
         .join("\n");
@@ -116,6 +142,7 @@ function generateStatement(
                 indentLevel + 1,
                 flowNames,
                 isInForExpression,
+                workerSignalName,
               ),
             )
             .join("\n")
@@ -133,12 +160,13 @@ function generateStatement(
         indentLevel,
         flowNames,
         isInForExpression,
+        workerSignalName,
       );
     }
     case "BreakStatement":
       return generateBreakStatement(statement, indentLevel);
     case "ContinueStatement":
-      return generateContinueStatement(statement, indentLevel);
+      return generateContinueStatement(statement, indentLevel, workerSignalName);
     default:
       throw new Error(`Unsupported statement type: ${statement}`);
   }
@@ -147,6 +175,7 @@ function generateStatement(
 function generateExpression(
   expression: ExpressionNode,
   flowNames: Set<string> = new Set(),
+  workerSignalName?: string,
 ): string {
   switch (expression.type) {
     case "Literal":
@@ -159,46 +188,80 @@ function generateExpression(
         result += escapeTemplateChunk(quasi.value);
         const interpolated = expression.expressions[index];
         if (interpolated !== undefined) {
-          const exprCode = generateExpression(interpolated, flowNames);
+          const exprCode = generateExpression(
+            interpolated,
+            flowNames,
+            workerSignalName,
+          );
           result += `\${typeof (${exprCode}) === "object" && (${exprCode}) !== null ? JSON.stringify(${exprCode}) : (${exprCode})}`;
         }
       });
       return `${result}\``;
     }
     case "MemberExpression": {
-      const object = generateExpression(expression.object, flowNames);
+      const object = generateExpression(
+        expression.object,
+        flowNames,
+        workerSignalName,
+      );
       return `${object}.${expression.property}`;
     }
     case "BinaryExpression": {
-      const left = generateExpression(expression.left, flowNames);
-      const right = generateExpression(expression.right, flowNames);
+      const left = generateExpression(
+        expression.left,
+        flowNames,
+        workerSignalName,
+      );
+      const right = generateExpression(
+        expression.right,
+        flowNames,
+        workerSignalName,
+      );
       const operator =
         MAPPING_BINARY_OPERATOR[expression.operator] || expression.operator;
       return `${left} ${operator} ${right}`;
     }
     case "UnaryExpression": {
-      const argument = generateExpression(expression.argument, flowNames);
+      const argument = generateExpression(
+        expression.argument,
+        flowNames,
+        workerSignalName,
+      );
       return `${expression.operator}${argument}`;
     }
     case "UseExpression": {
-      const inputPrompt = generateExpression(expression.inputPrompt, flowNames);
+      const inputPrompt = generateExpression(
+        expression.inputPrompt,
+        flowNames,
+        workerSignalName,
+      );
       const name = JSON.stringify(expression.agentName);
       const isSafe = expression.variant === "safe";
+      const optionsArg = workerSignalName ? `, { signal: ${workerSignalName} }` : "";
       if (!isSafe) {
-        return `await sam.useUnsafe(${name}, ${inputPrompt})`;
+        return `await sam.useUnsafe(${name}, ${inputPrompt}${optionsArg})`;
       }
       const schema = `${expression.schema}Schema`;
-      return `await sam.use(${name}, ${inputPrompt}, ${schema})`;
+      return `await sam.use(${name}, ${inputPrompt}, ${schema}${optionsArg})`;
     }
     case "CallExpression": {
-      const callee = generateExpression(expression.callee, flowNames);
+      const callee = generateExpression(
+        expression.callee,
+        flowNames,
+        workerSignalName,
+      );
 
-      return generateFlowFunctionCall(callee, expression.arguments, flowNames);
+      return generateFlowFunctionCall(
+        callee,
+        expression.arguments,
+        flowNames,
+        workerSignalName,
+      );
     }
 
     case "ArrayExpression": {
       const elements = expression.elements
-        .map((el) => generateExpression(el, flowNames))
+        .map((el) => generateExpression(el, flowNames, workerSignalName))
         .join(", ");
       return `[${elements}]`;
     }
@@ -209,22 +272,67 @@ function generateExpression(
 
 function generateForExpressionLet(
   varName: string,
-  forNode: Extract<StatementNode, { type: "ForStatement" }>,
+  forNode: ForStatementNode,
   indentLevel: number,
   flowNames: Set<string>,
   isInForExpression: boolean = false,
+  workerSignalName?: string,
 ): string {
   const indent = "  ".repeat(indentLevel);
+  const iterable = generateExpression(
+    forNode.iterable,
+    flowNames,
+    workerSignalName,
+  );
+
+  if (forNode.parallel !== undefined) {
+    const parallel = generateExpression(
+      forNode.parallel,
+      flowNames,
+      workerSignalName,
+    );
+    const ordered = (forNode.ordered ?? true) ? "true" : "false";
+    const signalProp = workerSignalName
+      ? `, signal: ${workerSignalName}`
+      : "";
+    const workerBody = forNode.body
+      .map((stmt) =>
+        generateStatement(stmt, indentLevel + 1, flowNames, true, "signal"),
+      )
+      .join("\n");
+    const earlyReturn = workerSignalName
+      ? `return { kind: "return", value: _res_${varName}.value };`
+      : isInForExpression
+        ? `return { __samReturn: true as const, value: _res_${varName}.value };`
+        : `return _res_${varName}.value;`;
+
+    return [
+      `${indent}const _res_${varName} = await sam.mapParallel(${iterable}, { parallel: ${parallel}, ordered: ${ordered}${signalProp} }, async (${forNode.iterator}, signal) => {`,
+      workerBody,
+      `${indent}  return { kind: "continue" };`,
+      `${indent}});`,
+      `${indent}if (_res_${varName}.kind === "return") ${earlyReturn}`,
+      `${indent}const ${varName} = _res_${varName}.values;`,
+    ].join("\n");
+  }
+
   const loopVar = `_loop_${varName}`;
-  const iterable = generateExpression(forNode.iterable, flowNames);
   const body = forNode.body
-    .map((stmt) => generateStatement(stmt, indentLevel + 2, flowNames, true))
+    .map((stmt) =>
+      generateStatement(
+        stmt,
+        indentLevel + 2,
+        flowNames,
+        true,
+        workerSignalName,
+      ),
+    )
     .join("\n");
-  // When this for-expression is nested inside another one, an early return
-  // must keep the __samReturn envelope so the enclosing loop can propagate it.
-  const earlyReturn = isInForExpression
-    ? `return { __samReturn: true as const, value: ${loopVar}.value };`
-    : `return ${loopVar}.value;`;
+  const earlyReturn = workerSignalName
+    ? `return { kind: "return", value: ${loopVar}.value };`
+    : isInForExpression
+      ? `return { __samReturn: true as const, value: ${loopVar}.value };`
+      : `return ${loopVar}.value;`;
 
   return [
     `${indent}const ${loopVar} = await (async () => {`,
@@ -238,11 +346,13 @@ function generateForExpressionLet(
     `${indent}const ${varName} = ${loopVar}.value;`,
   ].join("\n");
 }
+
 function generateForStatement(
   statement: StatementNode,
   indentLevel: number,
   flowNames: Set<string>,
   isInForExpression: boolean = false,
+  workerSignalName?: string,
 ): string {
   if (statement.type !== "ForStatement") {
     throw new Error("Expected a ForStatement node");
@@ -250,14 +360,56 @@ function generateForStatement(
 
   const indent = "  ".repeat(indentLevel);
   const iterator = statement.iterator;
-  const iterable = generateExpression(statement.iterable, flowNames);
-  const body = statement.body
+  const iterable = generateExpression(
+    statement.iterable,
+    flowNames,
+    workerSignalName,
+  );
+
+  if (statement.parallel === undefined) {
+    const body = statement.body
+      .map((stmt) =>
+        generateStatement(
+          stmt,
+          indentLevel + 1,
+          flowNames,
+          isInForExpression,
+          workerSignalName,
+        ),
+      )
+      .join("\n");
+
+    return `${indent}for (const ${iterator} of ${iterable}) {\n${body}\n${indent}}`;
+  }
+
+  const parallel = generateExpression(
+    statement.parallel,
+    flowNames,
+    workerSignalName,
+  );
+  const ordered = (statement.ordered ?? true) ? "true" : "false";
+  const signalProp = workerSignalName ? `, signal: ${workerSignalName}` : "";
+  const workerBody = statement.body
     .map((stmt) =>
-      generateStatement(stmt, indentLevel + 1, flowNames, isInForExpression),
+      generateStatement(stmt, indentLevel + 1, flowNames, isInForExpression, "signal"),
     )
     .join("\n");
 
-  return `${indent}for (const ${iterator} of ${iterable}) {\n${body}\n${indent}}`;
+  const earlyReturn = workerSignalName
+    ? `${indent}  return { kind: "return", value: _res.value };`
+    : isInForExpression
+      ? `${indent}  return { __samReturn: true as const, value: _res.value };`
+      : `${indent}  return _res.value;`;
+
+  return [
+    `${indent}const _res = await sam.mapParallel(${iterable}, { parallel: ${parallel}, ordered: ${ordered}${signalProp} }, async (${iterator}, signal) => {`,
+    workerBody,
+    `${indent}  return { kind: "continue" };`,
+    `${indent}});`,
+    `${indent}if (_res.kind === "return") {`,
+    earlyReturn,
+    `${indent}}`,
+  ].join("\n");
 }
 
 function generateBreakStatement(
@@ -275,12 +427,16 @@ function generateBreakStatement(
 function generateContinueStatement(
   statement: StatementNode,
   indentLevel: number,
+  workerSignalName?: string,
 ): string {
   if (statement.type !== "ContinueStatement") {
     throw new Error("Expected a ContinueStatement node");
   }
 
   const indent = "  ".repeat(indentLevel);
+  if (workerSignalName) {
+    return `${indent}return { kind: "continue" };`;
+  }
   return `${indent}continue;`;
 }
 
@@ -288,9 +444,10 @@ function generateFlowFunctionCall(
   flowName: string,
   args: ExpressionNode[],
   flowNames: Set<string> = new Set(),
+  workerSignalName?: string,
 ): string {
   const argsCode = args
-    .map((arg) => generateExpression(arg, flowNames))
+    .map((arg) => generateExpression(arg, flowNames, workerSignalName))
     .join(", ");
 
   const isFlowCall = flowNames.has(flowName);

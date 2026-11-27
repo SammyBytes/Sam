@@ -1153,3 +1153,86 @@ test("should reject yield outside a for-expression", () => {
     "'yield' in flow 'YieldOutside' can only be used inside a 'for' expression",
   );
 });
+
+test("should parse a for loop with parallel and ordered options", () => {
+  const code = `
+    flow RunParallel(items: string[], workers: number) {
+      let orderedResults = for item in items with { parallel: 3, ordered: true } {
+        yield item
+      }
+      let unorderedResults = for item in items with { parallel: workers, ordered: false } {
+        yield item
+      }
+      for item in items with { parallel: 2 } {
+        continue
+      }
+      return orderedResults
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const flow = ast.body[0];
+
+  expect(flow?.type).toBe("FlowDeclaration");
+  if (flow?.type === "FlowDeclaration") {
+    const firstLet = flow.body[0];
+    if (firstLet?.type === "LetStatement" && firstLet.value.type === "ForStatement") {
+      expect(firstLet.value.parallel).toEqual({ type: "Literal", value: 3 });
+      expect(firstLet.value.ordered).toBe(true);
+    }
+
+    const secondLet = flow.body[1];
+    if (secondLet?.type === "LetStatement" && secondLet.value.type === "ForStatement") {
+      expect(secondLet.value.parallel).toEqual({
+        type: "Identifier",
+        name: "workers",
+      });
+      expect(secondLet.value.ordered).toBe(false);
+    }
+
+    const thirdStmt = flow.body[2];
+    if (thirdStmt?.type === "ForStatement") {
+      expect(thirdStmt.parallel).toEqual({ type: "Literal", value: 2 });
+      expect(thirdStmt.ordered).toBeUndefined();
+    }
+  }
+});
+
+test("should reject invalid parallel options, ordered without parallel, or break inside parallel loop", () => {
+  const zeroParallel = `
+    flow Bad() {
+      for x in [1, 2] with { parallel: 0 } {
+        let a = x
+      }
+    }
+  `;
+
+  const floatParallel = `
+    flow Bad() {
+      for x in [1, 2] with { parallel: 1.5 } {
+        let a = x
+      }
+    }
+  `;
+
+  const orderedWithoutParallel = `
+    flow Bad() {
+      for x in [1, 2] with { ordered: false } {
+        let a = x
+      }
+    }
+  `;
+
+  const breakInParallel = `
+    flow Bad() {
+      for x in [1, 2] with { parallel: 2 } {
+        break
+      }
+    }
+  `;
+
+  expect(() => new Parser(tokenize(zeroParallel)).parse()).toThrow(/positive integer/);
+  expect(() => new Parser(tokenize(floatParallel)).parse()).toThrow(/positive integer/);
+  expect(() => new Parser(tokenize(orderedWithoutParallel)).parse()).toThrow(/ordered/);
+  expect(() => new Parser(tokenize(breakInParallel)).parse()).toThrow(/break/);
+});
