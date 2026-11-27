@@ -6,6 +6,9 @@ export interface HttpRequestSpec {
   url: string;
   headers: Record<string, string>;
   body: string | Record<string, unknown> | undefined;
+  options?: {
+    signal?: AbortSignal;
+  };
 }
 
 export interface IProviderStrategy {
@@ -14,6 +17,7 @@ export interface IProviderStrategy {
     agent: ProviderAgentConfig,
     inputPrompt: string,
     schema?: z.ZodTypeAny,
+    options?: { signal?: AbortSignal },
   ): HttpRequestSpec;
 
   extractContent(responseBody: unknown): string | null;

@@ -9,3 +9,12 @@ export function ok<T>(value: T): Result<T, never> {
 export function err<E>(error: E): Result<never, E> {
   return { ok: false, error };
 }
+
+export type WorkerOutcome<T> =
+  | { kind: "yield"; value: T }
+  | { kind: "continue" }
+  | { kind: "return"; value: unknown };
+
+export type ParallelResult<T> =
+  | { kind: "values"; values: T[] }
+  | { kind: "return"; value: unknown };

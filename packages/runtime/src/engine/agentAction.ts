@@ -12,18 +12,7 @@ import type { IProviderStrategy } from "../strategies/provider/providerStrategy"
 import { OpenAICompatibleStrategy } from "../strategies/provider/openaiCompatibleStrategy";
 import type { ProviderConfig } from "./provider/providerConfig";
 import { providerExecute } from "./httpExecutor";
-
-export type Runtime = {
-  use: <TSchema>(
-    agentName: string,
-    inputPrompt: string,
-    schema: z.ZodType<TSchema>,
-  ) => Promise<Result<TSchema, AgentError>>;
-  useUnsafe: (
-    agentName: string,
-    inputPrompt: string,
-  ) => Promise<Result<string, AgentError>>;
-};
+import type { Runtime } from "../types";
 
 const strategyRegistry = new Map<string, IAgentStrategy>([
   ["mock", new MockStrategy()],
@@ -35,10 +24,11 @@ const providerStrategyRegistry = new Map<string, IProviderStrategy>([
   ["openai-compatible", new OpenAICompatibleStrategy()],
 ]);
 
-async function executeRunner(
+export async function executeRunner(
   agent: LocalAgentConfig,
   inputPrompt: string,
   schema?: z.ZodTypeAny,
+  options?: { signal?: AbortSignal },
 ): Promise<Result<string, AgentError>> {
   const strategy = strategyRegistry.get(agent.runner);
   if (!strategy) {
@@ -52,7 +42,7 @@ async function executeRunner(
 
   const binary = strategy.getBinaryName();
   const args = strategy.buildArgs(agent, inputPrompt, schema);
-  const result = await agentExecute(agent, binary, args);
+  const result = await agentExecute(agent, binary, args, options);
 
   if (!result.ok || !strategy.extractOutput) {
     return result;
@@ -72,11 +62,12 @@ async function executeRunner(
   }
 }
 
-async function executeAgent(
+export async function executeAgent(
   agent: AgentConfig,
   providerMap: Map<string, ProviderConfig>,
   inputPrompt: string,
   schema?: z.ZodTypeAny,
+  options?: { signal?: AbortSignal },
 ): Promise<Result<string, AgentError>> {
   if (
     agent.maxInputChars !== undefined &&
@@ -93,7 +84,7 @@ async function executeAgent(
   }
 
   if ("runner" in agent) {
-    return executeRunner(agent, inputPrompt, schema);
+    return executeRunner(agent, inputPrompt, schema, options);
   }
 
   const provider = providerMap.get(agent.provider);
@@ -118,84 +109,4 @@ async function executeAgent(
 
   const spec = strategy.buildRequest(provider, agent, inputPrompt, schema);
   return providerExecute(provider, agent, strategy, spec);
-}
-
-export function createRuntime(
-  agents: AgentConfig[],
-  providers: ProviderConfig[] = [],
-): Runtime {
-  const agentMap = new Map(agents.map((a) => [a.name, a]));
-  const providerMap = new Map(providers.map((p) => [p.name, p]));
-
-  return {
-    async use<TSchema>(
-      agentName: string,
-      inputPrompt: string,
-      schema: z.ZodType<TSchema>,
-    ): Promise<Result<TSchema, AgentError>> {
-      const agent = agentMap.get(agentName);
-      if (!agent) {
-        return err({
-          code: "AGENT_NOT_FOUND",
-          agentName,
-          message: `Agent ${agentName} not found.`,
-        });
-      }
-
-      const result = await executeAgent(
-        agent,
-        providerMap,
-        inputPrompt,
-        schema,
-      );
-      if (!result.ok) {
-        return result;
-      }
-
-      let parsedJson: unknown;
-      try {
-        const cleanedData = result.value
-          .replace(/^```json\s*|\s*```$/g, "")
-          .trim();
-        parsedJson = JSON.parse(cleanedData);
-      } catch (jsonError) {
-        return err({
-          code: "PARSE_ERROR",
-          agentName,
-          rawOutput: result.value,
-          message: `Failed to parse JSON output from agent '${agentName}': ${
-            jsonError instanceof Error ? jsonError.message : String(jsonError)
-          }`,
-        });
-      }
-
-      const parseResult = await schema.safeParseAsync(parsedJson);
-      if (!parseResult.success) {
-        return err({
-          code: "VALIDATION_ERROR",
-          agentName,
-          rawOutput: result.value,
-          issues: parseResult.error.issues,
-          message: `Output from agent '${agentName}' failed schema validation.`,
-        });
-      }
-      return ok(parseResult.data);
-    },
-
-    async useUnsafe(
-      agentName: string,
-      inputPrompt: string,
-    ): Promise<Result<string, AgentError>> {
-      const agent = agentMap.get(agentName);
-      if (!agent) {
-        return err({
-          code: "AGENT_NOT_FOUND",
-          agentName,
-          message: `Agent ${agentName} not found.`,
-        });
-      }
-
-      return executeAgent(agent, providerMap, inputPrompt);
-    },
-  };
 }

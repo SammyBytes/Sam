@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { z } from "zod";
 import type { AgentConfig } from "./agents/agentConfig";
 import type { ProviderConfig } from "./provider/providerConfig";
-import { createRuntime } from "./agentAction";
+import { createRuntime } from "./index";
 
 let server: ReturnType<typeof Bun.serve>;
 let baseUrl: string;
@@ -44,9 +44,7 @@ function createProviderRuntime(agent: AgentConfig) {
   return createRuntime([agent], [{ ...MOCK_PROVIDER, baseUrl }]);
 }
 
-const providerAgent = (
-  overrides: Partial<AgentConfig> = {},
-): AgentConfig =>
+const providerAgent = (overrides: Partial<AgentConfig> = {}): AgentConfig =>
   ({
     name: "LimitedProvider",
     provider: "MockProvider",
@@ -65,9 +63,7 @@ const localAgent = (overrides: Partial<AgentConfig> = {}): AgentConfig =>
 describe("maxInputChars enforcement", () => {
   test("rejects a provider prompt above max_input_chars without calling the provider", async () => {
     requestCount = 0;
-    const runtime = createProviderRuntime(
-      providerAgent({ maxInputChars: 5 }),
-    );
+    const runtime = createProviderRuntime(providerAgent({ maxInputChars: 5 }));
 
     const result = await runtime.useUnsafe("LimitedProvider", "123456");
 
@@ -86,9 +82,7 @@ describe("maxInputChars enforcement", () => {
 
   test("allows a provider prompt exactly at max_input_chars", async () => {
     requestCount = 0;
-    const runtime = createProviderRuntime(
-      providerAgent({ maxInputChars: 5 }),
-    );
+    const runtime = createProviderRuntime(providerAgent({ maxInputChars: 5 }));
 
     const result = await runtime.useUnsafe("LimitedProvider", "12345");
 
@@ -101,9 +95,7 @@ describe("maxInputChars enforcement", () => {
 
   test("allows a provider prompt below max_input_chars", async () => {
     requestCount = 0;
-    const runtime = createProviderRuntime(
-      providerAgent({ maxInputChars: 10 }),
-    );
+    const runtime = createProviderRuntime(providerAgent({ maxInputChars: 10 }));
 
     const result = await runtime.useUnsafe("LimitedProvider", "short");
 
@@ -160,11 +152,7 @@ describe("maxInputChars enforcement", () => {
     ]);
     const OutcomeSchema = z.object({ value: z.string() });
 
-    const result = await runtime.use(
-      "LimitedRunner",
-      "toolong",
-      OutcomeSchema,
-    );
+    const result = await runtime.use("LimitedRunner", "toolong", OutcomeSchema);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {

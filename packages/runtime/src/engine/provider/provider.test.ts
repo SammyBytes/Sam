@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { createRuntime } from "../agentAction";
+import { createRuntime } from "..";
 
 let server: ReturnType<typeof Bun.serve>;
 let baseUrl: string;

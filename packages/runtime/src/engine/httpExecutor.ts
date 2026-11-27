@@ -1,7 +1,4 @@
-import {
-  isContextLimitError,
-  type AgentError,
-} from "../errors";
+import { isContextLimitError, type AgentError } from "../errors";
 import { err, ok, type Result } from "../result";
 import type {
   HttpRequestSpec,
@@ -67,11 +64,15 @@ export async function providerExecute(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      const signal =
+        spec.options?.signal ??
+        (agent.timeout ? AbortSignal.timeout(agent.timeout) : undefined);
+
       const response = await fetch(spec.url, {
         method: "POST",
         headers: spec.headers,
         body: JSON.stringify(spec.body),
-        signal: agent.timeout ? AbortSignal.timeout(agent.timeout) : undefined,
+        signal: signal,
       });
 
       if (!response.ok) {

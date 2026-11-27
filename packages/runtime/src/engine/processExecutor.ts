@@ -9,6 +9,7 @@ export async function agentExecute(
   agent: LocalAgentConfig,
   binary: string,
   args: string[],
+  options?: { signal?: AbortSignal },
 ): Promise<Result<string, AgentError>> {
   try {
     const proc = Bun.spawn({
@@ -17,6 +18,7 @@ export async function agentExecute(
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
+      signal: options?.signal,
     });
 
     let timedOut = false;
