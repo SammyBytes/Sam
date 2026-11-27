@@ -1,6 +1,7 @@
 import type {
   ExpressionNode,
   FlowNode,
+  ForStatementNode,
   StatementNode,
   TypeAnnotation,
 } from "../../../parser/ast";
@@ -55,35 +56,68 @@ function generateStatement(
   statement: StatementNode,
   indentLevel: number = 1,
   flowNames: Set<string> = new Set(),
+  isInForExpression: boolean = false,
 ): string {
   const indent = "  ".repeat(indentLevel);
 
   switch (statement.type) {
     case "LetStatement": {
       const varName = statement.name;
+      if (statement.value.type === "ForStatement") {
+        return generateForExpressionLet(
+          String(varName),
+          statement.value,
+          indentLevel,
+          flowNames,
+          isInForExpression,
+        );
+      }
+
       const varValue = generateExpression(statement.value, flowNames);
       return `${indent}const ${varName} = ${varValue};`;
-    }
-    case "ReturnStatement": {
-      const returnValue = statement.value
-        ? generateExpression(statement.value, flowNames)
-        : "";
-      const isEarlyReturn = returnValue ? `return ${returnValue};` : "return;";
-      return `${indent}${isEarlyReturn}`;
     }
     case "ExpressionStatement": {
       const exprValue = generateExpression(statement.expression, flowNames);
       return `${indent}${exprValue};`;
     }
+    case "ReturnStatement": {
+      const returnValue = statement.value
+        ? generateExpression(statement.value, flowNames)
+        : "";
+      if (isInForExpression) {
+        const retVal = returnValue || "undefined";
+        return `${indent}return { __samReturn: true, value: ${retVal} };`;
+      }
+      const isEarlyReturn = returnValue ? `return ${returnValue};` : "return;";
+      return `${indent}${isEarlyReturn}`;
+    }
+    case "YieldStatement": {
+      const yieldValue = generateExpression(statement.value, flowNames);
+      return `${indent}_acc.push(${yieldValue});`;
+    }
     case "IfStatement": {
       const condition = generateExpression(statement.condition, flowNames);
       const thenBlock = statement.thenBranch
-        .map((stmt) => generateStatement(stmt, indentLevel + 1, flowNames))
+        .map((stmt) =>
+          generateStatement(
+            stmt,
+            indentLevel + 1,
+            flowNames,
+            isInForExpression,
+          ),
+        )
         .join("\n");
 
       const elseBlock = statement.elseBranch
         ? statement.elseBranch
-            .map((stmt) => generateStatement(stmt, indentLevel + 1, flowNames))
+            .map((stmt) =>
+              generateStatement(
+                stmt,
+                indentLevel + 1,
+                flowNames,
+                isInForExpression,
+              ),
+            )
             .join("\n")
         : null;
 
@@ -94,7 +128,12 @@ function generateStatement(
       return ifStatementCode;
     }
     case "ForStatement": {
-      return generateForStatement(statement, indentLevel, flowNames);
+      return generateForStatement(
+        statement,
+        indentLevel,
+        flowNames,
+        isInForExpression,
+      );
     }
     case "BreakStatement":
       return generateBreakStatement(statement, indentLevel);
@@ -167,10 +206,42 @@ function generateExpression(
   }
 }
 
+function generateForExpressionLet(
+  varName: string,
+  forNode: Extract<StatementNode, { type: "ForStatement" }>,
+  indentLevel: number,
+  flowNames: Set<string>,
+  isInForExpression: boolean = false,
+): string {
+  const indent = "  ".repeat(indentLevel);
+  const loopVar = `_loop_${varName}`;
+  const iterable = generateExpression(forNode.iterable, flowNames);
+  const body = forNode.body
+    .map((stmt) => generateStatement(stmt, indentLevel + 2, flowNames, true))
+    .join("\n");
+  // When this for-expression is nested inside another one, an early return
+  // must keep the __samReturn envelope so the enclosing loop can propagate it.
+  const earlyReturn = isInForExpression
+    ? `return { __samReturn: true as const, value: ${loopVar}.value };`
+    : `return ${loopVar}.value;`;
+
+  return [
+    `${indent}const ${loopVar} = await (async () => {`,
+    `${indent}  const _acc: any[] = [];`,
+    `${indent}  for (const ${forNode.iterator} of ${iterable}) {`,
+    body,
+    `${indent}  }`,
+    `${indent}  return { __samReturn: false as const, value: _acc };`,
+    `${indent}})();`,
+    `${indent}if (${loopVar}.__samReturn) ${earlyReturn}`,
+    `${indent}const ${varName} = ${loopVar}.value;`,
+  ].join("\n");
+}
 function generateForStatement(
   statement: StatementNode,
   indentLevel: number,
   flowNames: Set<string>,
+  isInForExpression: boolean = false,
 ): string {
   if (statement.type !== "ForStatement") {
     throw new Error("Expected a ForStatement node");
@@ -180,7 +251,9 @@ function generateForStatement(
   const iterator = statement.iterator;
   const iterable = generateExpression(statement.iterable, flowNames);
   const body = statement.body
-    .map((stmt) => generateStatement(stmt, indentLevel + 1, flowNames))
+    .map((stmt) =>
+      generateStatement(stmt, indentLevel + 1, flowNames, isInForExpression),
+    )
     .join("\n");
 
   return `${indent}for (const ${iterator} of ${iterable}) {\n${body}\n${indent}}`;

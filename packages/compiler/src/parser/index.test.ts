@@ -1090,3 +1090,66 @@ test("accepts timeout on the claude runner", () => {
 
   expect(() => new Parser(tokenize(code)).parse()).not.toThrow();
 });
+
+test("should parse a for-expression with a yield into a let statement", () => {
+  const code = `
+    flow Collect(items: string[]) {
+      let results = for item in items {
+        yield item
+      }
+      return results
+    }
+  `;
+
+  const ast = new Parser(tokenize(code)).parse();
+  const flow = ast.body[0];
+
+  expect(flow?.type).toBe("FlowDeclaration");
+
+  if (flow?.type === "FlowDeclaration") {
+    const letStatement = flow.body[0];
+    expect(letStatement).toEqual({
+      type: "LetStatement",
+      name: "results",
+      value: {
+        type: "ForStatement",
+        iterator: "item",
+        iterable: { type: "Identifier", name: "items" },
+        body: [
+          {
+            type: "YieldStatement",
+            value: { type: "Identifier", name: "item" },
+          },
+        ],
+      },
+    });
+  }
+});
+
+test("should reject a for-expression without a yield", () => {
+  const code = `
+    flow NoYield(items: string[]) {
+      let results = for item in items {
+        let copy = item
+      }
+      return results
+    }
+  `;
+
+  expect(() => new Parser(tokenize(code)).parse()).toThrow(
+    "'for' expression in flow 'NoYield' must contain at least one 'yield' statement.",
+  );
+});
+
+test("should reject yield outside a for-expression", () => {
+  const code = `
+    flow YieldOutside() {
+      yield "value"
+      return "done"
+    }
+  `;
+
+  expect(() => new Parser(tokenize(code)).parse()).toThrow(
+    "'yield' in flow 'YieldOutside' can only be used inside a 'for' expression",
+  );
+});

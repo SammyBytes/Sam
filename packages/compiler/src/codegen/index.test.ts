@@ -705,3 +705,60 @@ test("should generate break, continue, early return and agent calls inside a for
   expect(output).toContain("      return finding;");
   expect(output).toContain("  return \"done\";");
 });
+
+test("should collect yielded values from a for-expression into an immutable array", () => {
+  const code = `
+    schema Summary {
+      text: string
+    }
+
+    agent Summarizer {
+      runner: mock
+      workspace: "."
+    }
+
+    flow Summarize(items: string[]) {
+      let summaries = for item in items {
+        let result = use Summarizer<Summary>(item)
+        if (!result.ok) {
+          return result
+        }
+        yield result.value
+      }
+      return summaries
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain("const _loop_summaries = await (async () => {");
+  expect(output).toContain("const _acc: any[] = [];");
+  expect(output).toContain("for (const item of items) {");
+  expect(output).toContain("_acc.push(result.value);");
+  expect(output).toContain("const summaries = _loop_summaries.value;");
+  expect(output).toContain("return summaries;");
+});
+
+test("should propagate early returns from a nested for-expression", () => {
+  const code = `
+    flow Nested() {
+      let outer = for a in ["A1", "A2"] {
+        let inner = for b in ["B1", "STOP"] {
+          if (b == "STOP") {
+            return "aborted"
+          }
+          yield b
+        }
+        yield inner
+      }
+      return outer
+    }
+  `;
+
+  const output = generateCode(new Parser(tokenize(code)).parse());
+
+  expect(output).toContain(
+    "if (_loop_inner.__samReturn) return { __samReturn: true as const, value: _loop_inner.value };",
+  );
+  expect(output).toContain("if (_loop_outer.__samReturn) return _loop_outer.value;");
+});

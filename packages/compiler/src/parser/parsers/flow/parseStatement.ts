@@ -1,4 +1,4 @@
-import type { ExpressionNode, FlowNode, StatementNode } from "../../ast";
+import type { ExpressionNode, FlowNode, ForStatementNode, StatementNode } from "../../ast";
 import type { IParserContext } from "../../types";
 import { parseBlock } from "./parseBlock";
 import { parseExpression } from "./parseExpression";
@@ -16,6 +16,9 @@ export function parseStatement(context: IParserContext): StatementNode {
 
     case "FOR":
       return parseForStatement(context);
+
+    case "YIELD":
+      return parseYieldStatement(context);
 
     case "BREAK":
       return parseBreakStatement(context);
@@ -50,6 +53,32 @@ function parseForStatement(context: IParserContext): StatementNode {
   };
 }
 
+function parseYieldStatement(context: IParserContext): StatementNode {
+  context.consume("YIELD", "Expected 'yield' keyword");
+
+  let value: ExpressionNode | undefined;
+  if (
+    !context.isAtEnd() &&
+    context.peek().type !== "RBRACE" &&
+    context.peek().type !== "SEMICOLON"
+  ) {
+    value = parseExpression(context);
+  }
+
+  if (context.peek().type === "SEMICOLON") {
+    context.advance();
+  }
+
+  if (!value) {
+    throw new Error("Expected an expression after 'yield'");
+  }
+
+  return {
+    type: "YieldStatement",
+    value,
+  };
+}
+
 function parseLetStatement(context: IParserContext): StatementNode {
   context.consume("LET", "Expected 'let' keyword");
   const identifierToken = context.consume(
@@ -58,7 +87,11 @@ function parseLetStatement(context: IParserContext): StatementNode {
   );
   context.consume("EQUALS", "Expected '=' after identifier");
 
-  const expression = parseExpression(context);
+  const expression =
+    context.peek().type === "FOR"
+      ? (parseForStatement(context) as ForStatementNode)
+      : parseExpression(context);
+      
   return {
     type: "LetStatement",
     name: identifierToken.value,
