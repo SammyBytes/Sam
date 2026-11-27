@@ -225,7 +225,7 @@ test("should generate template literals and chained agent responses", () => {
   const output = generateCode(ast);
 
   expect(output).toContain(
-    'const review = await sam.useUnsafe("Reviewer", `Review this: ${draft.value.body}`);',
+    'const review = await sam.useUnsafe("Reviewer", `Review this: ${typeof (draft.value.body) === "object" && (draft.value.body) !== null ? JSON.stringify(draft.value.body) : (draft.value.body)}`);',
   );
 });
 

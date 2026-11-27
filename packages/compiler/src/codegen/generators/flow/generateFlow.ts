@@ -159,7 +159,8 @@ function generateExpression(
         result += escapeTemplateChunk(quasi.value);
         const interpolated = expression.expressions[index];
         if (interpolated !== undefined) {
-          result += `\${${generateExpression(interpolated, flowNames)}}`;
+          const exprCode = generateExpression(interpolated, flowNames);
+          result += `\${typeof (${exprCode}) === "object" && (${exprCode}) !== null ? JSON.stringify(${exprCode}) : (${exprCode})}`;
         }
       });
       return `${result}\``;
